@@ -85,7 +85,7 @@ Control commands can be inserted at any point in the non-control data stream.
 Examples:
 
     * ``0x0072 0x0001 0x0003 0x0005 0x0007 0x0008`` writes the three words ``0x0005 0x0007 0x0008`` to the memory address ``0x0001`` of DAC channel 2 (the last of three) on board 7 (counting from 0).
-    * ``0xa5 0x06 0x0000 0x00a5a5 0x00a5a5 0xa5a5a5a5 0xa5 0x02 0xa5 0x04 0xa5 0x08`` enables the clock doubler (100 MHz) on all channels, then writes the single word ``0xa5a5`` to address ``0x00a5`` (note the escaping and the endianess) of channel 0 of board 0, enables soft trigger on all channels, disarms all channels, and finally starts all channels.
+    * ``0xa5 0x06 0x0000 0x00a5a5 0x00a5a5 0xa5a5a5a5 0xa5 0x02 0xa5 0x04 0xa5 0x08`` enables the clock doubler (100 MHz) on all channels, then writes the single word ``0xa5a5`` to address ``0x00a5`` (note the escaping and the endianess) of channel 0 of board 0, enables soft trigger on all channels, arms all channels, and finally starts all channels.
 
 
 .. _memory-layout:
@@ -373,7 +373,8 @@ It configures a single frame (the first and only) consisting of a single trigger
 
 The following figure compares the output of the three channels as simulated by the ``artiq.wavesynth.compute_samples.Synthesizer`` test tool with the output from a full simulation of the PDQ2 gateware including the host side code, control commands, memory writing, memory parsing, triggering and spline evaluation.
 
-.. figure:: pdq2_wavesynth_test.svg
+.. .. figure:: pdq2_wavesynth_test.svg
+.. figure:: pdq2_wavesynth_test.png
 
     PDQ2 and ``Synthesizer`` outputs for wavesynth test program.
 
