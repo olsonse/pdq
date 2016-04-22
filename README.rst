@@ -53,7 +53,7 @@ Individual commands are described in the manual in :ref:`usb-protocol`.
 The wavesynth format is described with examples in :ref:`wavesynth-format`.
 
 To communicate with the device, run the testbenches and generate the data,
-the following additional packages are required::
+the following additional packages are required:
 
   * ``pyserial``
   * ``scipy``

@@ -13,7 +13,7 @@ Under Linux the drivers are usually already shipped with the distribution and im
 Device permissions have to be handled as usual through group membership and udev rules.
 The USB bus topology or the device serial number can be used to uniquely identify and access a given PDQ2 stack.
 The serial number is stored in the FTDI FT245R USB FIFO chip and can be set as described in the old PDQ documentation.
-The byte order is little-endian.
+The byte order is little-endian (least significant byte first).
 
 Control Messages
 ................
@@ -78,7 +78,7 @@ The length of the data written is ``length = end_addr - start_addr + 1``.
     * Non-existent or invalid combinations of board address and/or channel number are silently ignored or wrapped.
     * If the write format is not adhered to, synchronization is lost and behavior is undefined.
     * A valid ``RESET`` sequence will restore synchronization.
-      To reliably reset under all circumstances, ensure that the reset sequence ``0xa500`` is *not* preceded by an (un-escaped) escape character.
+      To reliably reset under all circumstances, ensure that the reset sequence ``0xa5 0x00`` is *not* preceded by an (un-escaped) escape character.
 
 Control commands can be inserted at any point in the non-control data stream.
 
@@ -93,7 +93,7 @@ Examples:
 Memory Layout
 -------------
 
-The three DAC channels on each board have 8192, 8292, 4096 words (16 bit each) capacity (16 KiB, 16 KiB, 8 KiB).
+The three DAC channels on each board have 8192, 8192, 4096 words (16 bit each) capacity (16 KiB, 16 KiB, 8 KiB).
 Overflowing writes wrap around.
 The memory is interpreted as consisting of a table of frame start addresses with 8 entries, followed by data.
 The layout allows partitioning the waveform memory arbitrarily among the frames of a channel.
@@ -227,7 +227,7 @@ The assignment of the spline coefficients to the data words is as follows:
 If the ``length`` of a line is shorter than 14 words, the remaining coefficients (or parts of coefficients) are set to zero.
 
 The coefficients can be interpreted as two's complement signed integers or as unsigned integers depending depending on preference and convenience.
-The word order is the same as the byte order of the USB protocol: little-endian.
+The word order is the same as the byte order of the USB protocol: little-endian (least significant word first).
 
 The scaling of the coefficients is as follows:
 
@@ -322,8 +322,7 @@ The following example wavesynth program configures a PDQ2 stack with a single bo
 It configures a single frame (the first and only) consisting of a single triggered segment with three lines. The total frame duration is 80 cycles. The following waveforms are emitted on the three channels:
 
     * A quadratic smooth pulse in bias amplitude from 0 to 0.8 V and back to zero.
-    * A cubic smooth step from 1 V to 0.5 V, followed by 40 cycles of constant 0.5 V 
-      and then another cubic step down to 0 V.
+    * A cubic smooth step from 1 V to 0.5 V, followed by 40 cycles of constant 0.5 V and then another cubic step down to 0 V.
     * A sequence of amplitude shaped pulses with varying phase, frequency, and chirp.
 
 ::
