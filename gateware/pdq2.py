@@ -40,7 +40,7 @@ class Pdq2Base(Module):
         dacs (list): List of :mod:`gateware.dac.Dac`.
         comm (Module): :mod:`gateware.comm.Comm`.
     """
-    def __init__(self, ctrl_pads, mem_depths=(3 << 11, 3 << 11, 3 << 11)):
+    def __init__(self, ctrl_pads, mem_depths=(1 << 13, 1 << 13, 1 << 12)):
         # (1 << 13, (1 << 12) + (1 << 11), (1 << 12) + (1 << 11))
         self.dacs = []
         for i, depth in enumerate(mem_depths):
