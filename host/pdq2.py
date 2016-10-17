@@ -1,4 +1,4 @@
-# Copyright 2013-2015 Robert Jordens <jordens@gmail.com>
+# Copyright 2013-2016 Robert Jordens <jordens@gmail.com>
 #
 # This file is part of pdq2.
 #
@@ -272,6 +272,7 @@ class Pdq2:
         channels (list[Channel]): List of :class:`Channel` in this stack.
     """
     num_dacs = 3
+    freq = 50e6
 
     _escape = b"\xa5"
     _commands = "RESET TRIGGER ARM DCM START".split()
@@ -283,6 +284,18 @@ class Pdq2:
         self.num_boards = num_boards
         self.num_channels = self.num_dacs * self.num_boards
         self.channels = [Channel() for i in range(self.num_channels)]
+
+    def get_num_boards(self):
+        return self.num_boards
+
+    def get_num_channels(self):
+        return self.num_channels
+
+    def get_freq(self):
+        return self.freq
+
+    def set_freq(self, freq):
+        self.freq = float(freq)
 
     def close(self):
         """Close the USB device handle."""
@@ -345,13 +358,14 @@ class Pdq2:
             duration = line["duration"]
             trigger = line.get("trigger", False)
             for segment, data in zip(segments, line["channel_data"]):
+                silence = data.pop("silence", False)
                 if len(data) != 1:
                     raise ValueError("only one target per channel and line "
                                      "supported")
                 for target, target_data in data.items():
                     getattr(segment, target)(
                         shift=shift, duration=duration, trigger=trigger,
-                        **target_data)
+                        silence=silence, **target_data)
 
     def program(self, program, channels=None):
         """Serialize a wavesynth program and write it to the channels
@@ -380,8 +394,6 @@ class Pdq2:
             channel.clear()
         for frame in program:
             segments = [c.new_segment() for c in chs]
-            for segment in segments:
-                segment.line(typ=3, data=b"", trigger=True, duration=1, aux=1)
             self.program_segments(segments, frame)
             # append an empty line to stall the memory reader before jumping
             # through the frame table (`wait` does not prevent reading
@@ -391,3 +403,19 @@ class Pdq2:
                              jump=True)
         for channel, ch in zip(channels, chs):
             self.write_mem(channel, ch.serialize())
+
+    def flush(self):
+        self.dev.flush()
+
+    def park(self):
+        self.cmd("START", False)
+        self.cmd("TRIGGER", True)
+        self.flush()
+
+    def unpark(self):
+        self.cmd("TRIGGER", False)
+        self.cmd("START", True)
+        self.flush()
+
+    def ping(self):
+        return True
