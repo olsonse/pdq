@@ -15,8 +15,8 @@
 # You should have received a copy of the GNU General Public License
 # along with pdq2.  If not, see <http://www.gnu.org/licenses/>.
 
-from migen.fhdl.std import *
-from migen.flow.actor import Source, Sink
+from migen import *
+from misoc.interconnect.stream import Endpoint
 
 
 class Unescaper(Module):
@@ -24,24 +24,24 @@ class Unescaper(Module):
     unescaped high bandwidth data stream.
 
     Items in the input stream that are escaped by being prefixed with the
-    escape character, will be directed to the :attr:`source_b` output Source.
+    escape character, will be directed to the :attr:`source_b` output Endpoint.
 
     Items that are not escaped, and the escaped escape character itself are
-    directed at the :attr:`source_a` output Source.
+    directed at the :attr:`source_a` output Endpoint.
 
     Args:
         layout (layout): Stream layout to split.
         escape (int): Escape character.
 
     Attributes:
-        sink (Sink[layout]): Input stream.
-        source_a (Source[layout]): High bandwidth unescaped data Source.
-        source_b (Source[layout]): Low bandwidth command Source.
+        sink (Endpoint[layout]): Input stream.
+        source_a (Endpoint[layout]): High bandwidth unescaped data Endpoint.
+        source_b (Endpoint[layout]): Low bandwidth command Endpoint.
     """
     def __init__(self, layout, escape=0xa5):
-        self.sink = i = Sink(layout)
-        self.source_a = oa = Source(layout)
-        self.source_b = ob = Source(layout)
+        self.sink = i = Endpoint(layout)
+        self.source_a = oa = Endpoint(layout)
+        self.source_b = ob = Endpoint(layout)
         self.busy = Signal()
 
         ###
