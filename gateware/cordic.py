@@ -17,7 +17,7 @@
 
 from math import atan, atanh, log, sqrt, pi
 
-from migen.fhdl.std import *
+from migen import *
 
 
 class TwoQuadrantCordic(Module):
@@ -354,7 +354,7 @@ class Cordic(TwoQuadrantCordic):
         self.comb += [
                 If(q,
                     Cat(cxi, cyi, czi).eq(
-                        Cat(-xi, -yi, zi + (1 << flen(zi) - 1)))
+                        Cat(-xi, -yi, zi + (1 << len(zi) - 1)))
                 ).Else(
                     Cat(cxi, cyi, czi).eq(
                         Cat(xi, yi, zi))
