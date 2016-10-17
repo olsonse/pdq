@@ -60,7 +60,7 @@ CORDIC
 ------
 
 Trigonometric functions can also be represented efficiently on programmable logic using only additions, comparisons and bit shifts.
-See :mod:`gateware.cordic` for a full documentation of the features, capabilities, and constraints.
+See :mod:`misoc.cores.cordic` (in the MiSoC package) for a full documentation of the features, capabilities, and constraints.
 
 
 .. _features:
