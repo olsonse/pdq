@@ -16,10 +16,10 @@
 # along with pdq2.  If not, see <http://www.gnu.org/licenses/>.
 
 from migen import *
-from misoc.interconnect.stream import Endpoint
+from misoc.interconnect.stream import Endpoint, Demultiplexer
 
 
-class Unescaper(Module):
+class Unescaper(Demultiplexer):
     """Split a data stream into an escaped low bandwidth command stream and an
     unescaped high bandwidth data stream.
 
@@ -35,36 +35,34 @@ class Unescaper(Module):
 
     Attributes:
         sink (Endpoint[layout]): Input stream.
-        source_a (Endpoint[layout]): High bandwidth unescaped data Endpoint.
-        source_b (Endpoint[layout]): Low bandwidth command Endpoint.
+        source0 (Endpoint[layout]): High bandwidth unescaped data Endpoint.
+        source1 (Endpoint[layout]): Low bandwidth command Endpoint.
     """
     def __init__(self, layout, escape=0xa5):
-        self.sink = i = Endpoint(layout)
-        self.source_a = oa = Endpoint(layout)
-        self.source_b = ob = Endpoint(layout)
-        self.busy = Signal()
+        super(Unescaper, self).__init__(layout, 3)
 
         ###
 
+        dump = self.source2
+        del self.source2
+
         is_escape = Signal()
         was_escape = Signal()
-        ctrl = Cat(i.ack, oa.stb, ob.stb)
 
         self.sync += [
-                If(i.ack & i.stb,
+                If(self.sink.ack & self.sink.stb,
                     was_escape.eq(is_escape & ~was_escape)
                 )
         ]
 
         self.comb += [
-                oa.payload.eq(i.payload),
-                ob.payload.eq(i.payload),
-                is_escape.eq(i.stb & (i.payload.raw_bits() == escape)),
-                If(is_escape == was_escape, # 00 or 11: data, oa
-                    ctrl.eq(Cat(oa.ack, i.stb, 0)),
-                ).Elif(is_escape, # 01, swallow
-                    ctrl.eq(Cat(1, 0, 0)),
-                ).Else( # 10, command, ob
-                    ctrl.eq(Cat(ob.ack, 0, i.stb)),
+                dump.ack.eq(1),
+                is_escape.eq(self.sink.payload.raw_bits() == escape),
+                If(is_escape == was_escape,  # data, source0
+                    self.sel.eq(0),
+                ).Elif(is_escape,  # swallow
+                    self.sel.eq(2),
+                ).Else(  # command, source1
+                    self.sel.eq(1),
                 )
         ]

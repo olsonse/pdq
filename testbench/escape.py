@@ -25,17 +25,17 @@ data_layout = [("data", 8)]
 
 
 def _test_unescaper(dut, data, aout, bout):
-    yield dut.source_a.ack.eq(1)
-    yield dut.source_b.ack.eq(1)
+    yield dut.source0.ack.eq(1)
+    yield dut.source1.ack.eq(1)
     for i in data:
         yield dut.sink.data.eq(i)
         yield dut.sink.stb.eq(1)
         yield
         while True:
-            if (yield dut.source_a.stb):
-                aout.append((yield dut.source_a.data))
-            if (yield dut.source_b.stb):
-                bout.append((yield dut.source_b.data))
+            if (yield dut.source0.stb):
+                aout.append((yield dut.source0.data))
+            if (yield dut.source1.stb):
+                bout.append((yield dut.source1.data))
             if (yield dut.sink.ack):
                 break
             yield
