@@ -15,11 +15,9 @@
 # You should have received a copy of the GNU General Public License
 # along with pdq2.  If not, see <http://www.gnu.org/licenses/>.
 
-from migen.fhdl.std import *
-from migen.flow.actor import Sink
-from migen.actorlib.structuring import Cast, Pack, pack_layout
-from migen.genlib.fsm import FSM, NextState
+from migen import *
 from migen.genlib.cdc import MultiReg
+from misoc.interconnect.stream import Endpoint, StrideConverter
 
 from .escape import Unescaper
 from .ft245r import bus_layout
@@ -37,10 +35,10 @@ class MemWriter(Module):
         dacs (list): List of :mod:`gateware.dac.Dac`.
 
     Attributes:
-        sink (Sink[mem_layout]): 16 bit data sink.
+        sink (Endpoint[mem_layout]): 16 bit data sink.
     """
     def __init__(self, board, dacs):
-        self.sink = Sink(mem_layout)
+        self.sink = Endpoint(mem_layout)
 
         ###
 
@@ -93,7 +91,7 @@ class MemWriter(Module):
         self.sync += [
                 If(fsm.ongoing("DEV"),
                     dac.eq(pd[:4]),
-                    listen.eq(pd[4:4+flen(board)] == board),
+                    listen.eq(pd[4:4 + len(board)] == board),
                 ),
                 If(fsm.ongoing("START"),
                     adr.eq(pd)
@@ -155,12 +153,12 @@ class Ctrl(Module):
     Attributes:
         reset (Signal): Reset output from :class:`ResetGen`. Active high.
         dcm_sel (Signal): DCM slock select. Enable clock doubler. Output.
-        sink (Sink[bus_layout]): 8 bit control data sink. Input.
+        sink (Endpoint[bus_layout]): 8 bit control data sink. Input.
     """
     def __init__(self, pads, dacs):
         self.reset = Signal()
         self.dcm_sel = Signal()
-        self.sink = Sink(bus_layout)
+        self.sink = Endpoint(bus_layout)
 
         ###
 
@@ -225,22 +223,20 @@ class Comm(Module):
         dacs (list): List of :mod:`gateware.dac.Dac`.
 
     Attributes:
-        sink (Sink[bus_layout]): 8 bit data sink containing both the control
+        sink (Endpoint[bus_layout]): 8 bit data sink containing both the control
             sequencences and the data stream.
     """
     def __init__(self, ctrl_pads, dacs):
         self.submodules.unescaper = Unescaper(bus_layout, 0xa5)
         self.sink = self.unescaper.sink
-        self.submodules.pack = Pack(bus_layout, 2)
-        self.submodules.cast = Cast(pack_layout(bus_layout, 2), mem_layout)
-        self.submodules.memwriter = MemWriter(~ctrl_pads.adr, dacs) # adr active low
+        self.submodules.conv = StrideConverter(bus_layout, mem_layout)
+        self.submodules.memwriter = MemWriter(~ctrl_pads.adr, dacs)  # adr active low
         self.submodules.ctrl = Ctrl(ctrl_pads, dacs)
 
         ###
 
         self.comb += [
-                self.pack.sink.connect(self.unescaper.source_a),
-                self.cast.sink.connect(self.pack.source),
-                self.memwriter.sink.connect(self.cast.source),
-                self.ctrl.sink.connect(self.unescaper.source_b),
+                self.unescaper.source0.connect(self.conv.sink),
+                self.conv.source.connect(self.memwriter.sink),
+                self.unescaper.source1.connect(self.ctrl.sink),
         ]

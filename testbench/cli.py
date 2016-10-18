@@ -18,7 +18,7 @@
 
 from io import BytesIO
 
-from migen.sim.generic import run_simulation
+from migen import run_simulation
 from matplotlib import pyplot as plt
 import numpy as np
 

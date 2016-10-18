@@ -1,2 +1,3 @@
--e git://github.com/m-labs/migen.git@legacy#egg=migen
+-e git://github.com/m-labs/migen.git#egg=migen
+-e git://github.com/m-labs/misoc.git#egg=migen
 sphinx-argparse

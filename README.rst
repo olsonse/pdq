@@ -22,13 +22,17 @@ Build
 
 Requirements:
 
-  * The legacy branch of Migen (https://github.com/m-labs/migen/tree/legacy)
-  * Xilinx ISE (WebPack is sufficient)
+  * Migen (https://github.com/m-labs/migen)
+  * MiSoC (https://github.com/m-labs/misoc)
+  * Xilinx ISE (WebPack is sufficient; development uses ISE 14.7)
 
-Installation of Migen differs depending on what packaging system is used (or if one is used at all). Migen can be installed using ``pip``::
+Installation of Migen and MiSoC differs depending on what packaging system is used (or if one is used at all).
+Migen and MiSoC can be installed using ``pip``: ::
 
-  $ pip install -e git://github.com/m-labs/migen.git@legacy#egg=migen
+  $ pip install -e git://github.com/m-labs/migen.git#egg=migen
+  $ pip install -e git://github.com/m-labs/misoc.git#egg=misoc
 
+M-Labs also privides conda packages for Migen and MiSoC under the ``main`` and ``dev`` labels.
 Then to build the gateware::
 
   $ python make.py

@@ -15,14 +15,12 @@
 # You should have received a copy of the GNU General Public License
 # along with pdq2.  If not, see <http://www.gnu.org/licenses/>.
 
-from migen.fhdl.std import *
-from migen.genlib.record import Record
-from migen.genlib.misc import optree
-from migen.flow.actor import Source, Sink
-from migen.actorlib.fifo import SyncFIFO
-from migen.genlib.fsm import FSM, NextState
+from operator import add
 
-from .cordic import Cordic
+from migen import *
+from migen.genlib.record import Record
+from misoc.interconnect.stream import Endpoint, SyncFIFO
+from misoc.cores.cordic import Cordic
 
 
 line_layout = [
@@ -53,18 +51,18 @@ class Parser(Module):
 
     Attributes:
         mem (Memory): Memory to read from.
-        source (Source[line_layout]): Source of lines read from memory. Output.
+        source (Endpoint[line_layout]): Endpoint of lines read from memory. Output.
         arm (Signal): Allow triggers. If disarmed, the next line will not be
             read. Instead, the Parser will return to the frame address table.
             Input.
         start (Signal): Allow leaving the frame address table. Input.
         frame (Signal[3]): Values of the frame selection lines. Input.
     """
-    def __init__(self, mem_depth=4*(1<<10)):  # XC3S500E: 20x18bx1024
+    def __init__(self, mem_depth=4*(1 << 10)):  # XC3S500E: 20x18bx1024
         self.specials.mem = Memory(width=16, depth=mem_depth)
         self.specials.read = read = self.mem.get_port()
 
-        self.source = Source(line_layout)
+        self.source = Endpoint(line_layout)
         self.arm = Signal()
         self.start = Signal()
         self.frame = Signal(3)
@@ -77,8 +75,8 @@ class Parser(Module):
         lp = self.source.payload
         raw = Signal.like(lp.raw_bits())
         self.comb += lp.raw_bits().eq(raw)
-        lpa = Array([raw[i:i + flen(read.dat_r)] for i in
-            range(0, flen(raw), flen(read.dat_r))])
+        lpa = Array([raw[i:i + len(read.dat_r)] for i in
+            range(0, len(raw), len(read.dat_r))])
         data_read = Signal.like(lp.header.length)
 
         self.submodules.fsm = fsm = FSM(reset_state="JUMP")
@@ -150,7 +148,7 @@ class Sequencer(Module):
     new line data when the previous is finished.
 
     Attributes:
-        sink (Sink[line_layout]): Line data sink.
+        sink (Endpoint[line_layout]): Line data sink.
         trigger (Signal): Trigger input.
         arm (Signal): Arm input.
         aux (Signal): TTL AUX (F5) output.
@@ -158,7 +156,7 @@ class Sequencer(Module):
         data (Signal[16]): Output value to be send to the DAC.
     """
     def __init__(self):
-        self.sink = Sink(line_layout)
+        self.sink = Endpoint(line_layout)
 
         self.trigger = Signal()
         self.aux = Signal()
@@ -202,7 +200,7 @@ class Sequencer(Module):
 
         self.sync += [
                 toc0.eq(toc),
-                self.data.eq(optree("+", [sub.data for sub in subs])),
+                self.data.eq(reduce(add, [sub.data for sub in subs])),
                 self.aux.eq(line.header.aux),
                 self.silence.eq(line.header.silence),
 
@@ -341,8 +339,8 @@ class Dac(Module):
         if fifo:
             self.submodules.fifo = SyncFIFO(line_layout, fifo)
             self.comb += [
-                    self.fifo.sink.connect(self.parser.source),
-                    self.out.sink.connect(self.fifo.source)
+                    self.parser.source.connect(self.fifo.sink),
+                    self.fifo.source.connect(self.out.sink),
             ]
         else:
-            self.comb += self.out.sink.connect(self.parser.source)
+            self.comb += self.parser.source.connect(self.out.sink)

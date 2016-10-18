@@ -18,12 +18,12 @@
 from math import ceil
 import random
 
-from migen.fhdl.std import *
+from migen import *
 from migen.genlib.misc import timeline
 from migen.genlib.record import Record
-from migen.flow.actor import Source
-from migen.flow.transactions import Token
-from migen.actorlib.sim import SimActor
+from misoc.interconnect.stream import Endpoint
+#from migen.flow.transactions import Token
+#from migen.actorlib.sim import SimActor
 
 
 class SimFt245r_rx_w(Module):
@@ -86,11 +86,11 @@ class Ft245r_rx(Module):
         clk (float): Clock period in ns.
 
     Attributes:
-        source (Source[bus_layout]): 8 bit data source. Output.
+        source (Endpoint[bus_layout]): 8 bit data source. Output.
         busy (Signal): Data available but not acknowledged by sink. Output.
     """
     def __init__(self, pads, clk=10.):
-        self.source = do = Source(bus_layout)
+        self.source = do = Endpoint(bus_layout)
         self.busy = Signal()
 
         # t_RDLl_Dv = 50 ns (setup)
@@ -142,10 +142,3 @@ class SimFt245r_rx(Ft245r_rx):
         pads = Record(self.comm_layout)
         Ft245r_rx.__init__(self, pads)
         self.submodules.ft245r_w = SimFt245r_rx_w(pads, data)
-
-
-class SimReader(SimActor):
-    def __init__(self, data):
-        self.source = Source(bus_layout)
-        gen = (Token("source", {"data": _}) for _ in data)
-        SimActor.__init__(self, gen)

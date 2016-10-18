@@ -41,12 +41,6 @@ Code Documentation
 .. automodule:: gateware.platform
     :members:
 
-:mod:`gateware.cordic` module
------------------------------
-
-.. automodule:: gateware.cordic
-    :members:
-
 :mod:`gateware.escape` module
 -----------------------------
 

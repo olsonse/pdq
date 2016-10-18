@@ -15,13 +15,13 @@
 # You should have received a copy of the GNU General Public License
 # along with pdq2.  If not, see <http://www.gnu.org/licenses/>.
 
-from migen.fhdl.std import *
+from migen import *
 from migen.genlib.record import Record
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from .dac import Dac
 from .comm import Comm
-from .ft245r import Ft245r_rx, SimFt245r_rx, SimReader
+from .ft245r import Ft245r_rx #, SimFt245r_rx, SimReader
 
 
 class Pdq2Base(Module):
@@ -74,15 +74,15 @@ class Pdq2Sim(Module):
             reader = SimFt245r_rx(mem)
         self.submodules.reader = ResetInserter(["sys"])(reader)
         self.comb += self.reader.reset_sys.eq(self.dut.comm.ctrl.reset)
-        self.comb += self.dut.comm.sink.connect(self.reader.source)
+        self.comb += self.reader.source.connect(self.dut.comm.sink)
         # override high-ack during reset draining the reader
         self.comb += self.reader.source.ack.eq(self.dut.comm.sink.ack &
                                                ~self.dut.comm.ctrl.reset)
         self.outputs = []
 
-    def do_simulation(self, selfp):
-        self.outputs.append([dac.out.data for dac in selfp.dut.dacs])
-    do_simulation.passive = True
+    def do_simulation(self):
+        yield "passive"
+        self.outputs.append([(yield dac.out.data) for dac in selfp.dut.dacs])
 
 
 class CRG(Module):
@@ -165,13 +165,14 @@ class Pdq2(Pdq2Base):
         platform (Platform): PDQ2 platform.
     """
     def __init__(self, platform):
+        self.platform = platform
         ctrl_pads = platform.request("ctrl")
         Pdq2Base.__init__(self, ctrl_pads)
         self.submodules.crg = CRG(platform)
         comm_pads = platform.request("comm")
         self.submodules.reader = Ft245r_rx(comm_pads)
         self.comb += [
-                self.comm.sink.connect(self.reader.source),
+                self.reader.source.connect(self.comm.sink),
                 self.crg.rst.eq(self.comm.ctrl.reset),
                 ctrl_pads.go2_out.eq(self.crg.dcm_locked),
                 self.crg.dcm_sel.eq(self.comm.ctrl.dcm_sel)

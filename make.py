@@ -23,7 +23,7 @@ from gateware.pdq2 import Pdq2
 def _main():
     platform = Platform()
     pdq = Pdq2(platform)
-    platform.build_cmdline(pdq, build_name="pdq2")
+    platform.build(pdq, build_name="pdq2")
 
 
 if __name__ == "__main__":

@@ -15,8 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with pdq2.  If not, see <http://www.gnu.org/licenses/>.
 
-from migen.fhdl.std import *
-from migen.sim.generic import run_simulation
+from migen import *
 
 from matplotlib import pyplot as plt
 import numpy as np
@@ -64,7 +63,9 @@ def _main():
     p = pdq2.Pdq2(dev="dummy")
     c = p.channels[0]
     s = c.new_segment()
-    s.dac(t, v, order=k, first=dict(trigger=True))
+    for i, (ti, vi) in enumerate(zip(t, v)):
+        # TODO: order
+        s.bias([vi], duration=ti, trigger=(i == 0))
     s.dds(2*t, (v/c.cordic_gain).astype(np.int16),
           0*t + (1 << 14), (t/t[-1]*(1 << 13)).astype(np.int16),
           first=dict(trigger=False))
