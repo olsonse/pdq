@@ -16,6 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with pdq2.  If not, see <http://www.gnu.org/licenses/>.
 
+import os
+
 from gateware.platform import Platform
 from gateware.pdq2 import Pdq2
 
@@ -23,7 +25,8 @@ from gateware.pdq2 import Pdq2
 def _main():
     platform = Platform()
     pdq = Pdq2(platform)
-    platform.build(pdq, build_name="pdq2")
+    platform.build(pdq, build_name="pdq2",
+                   toolchain_path=os.environ.get("XILINX_PATH"))
 
 
 if __name__ == "__main__":

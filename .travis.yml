@@ -11,7 +11,7 @@ before_install:
   - ./.travis/get-xilinx.sh
 script:
   - PYTHONPATH=. python3 testbench/escape.py
-  - python3 make.py
+  - XILINX_PATH=$(pwd)/opt/Xilinx python3 make.py
 notifications:
   email: false
   irc:
