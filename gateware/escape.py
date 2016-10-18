@@ -60,7 +60,7 @@ class Unescaper(Demultiplexer):
                 is_escape.eq(self.sink.payload.raw_bits() == escape),
                 If(is_escape == was_escape,  # data, source0
                     self.sel.eq(0),
-                ).Elif(is_escape,  # swallow
+                ).Elif(is_escape,  # swallow, dump
                     self.sel.eq(2),
                 ).Else(  # command, source1
                     self.sel.eq(1),
