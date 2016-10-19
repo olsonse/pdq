@@ -20,7 +20,7 @@
 
 from migen import *
 from migen.genlib.cdc import MultiReg
-from misoc.interconnect.stream import Endpoint, EndpointDescription
+from misoc.interconnect.stream import Endpoint
 
 
 class DecimatingSynchronizer(Module):
@@ -98,10 +98,8 @@ spi_layout = [
 class SpiSlave(Module):
     def __init__(self, width=8):
         self.spi = spi = Record(spi_layout)
-        self.mosi = mosi = Endpoint(EndpointDescription(
-            [("data", width)]))
-        self.miso = miso = Endpoint(EndpointDescription(
-            [("data", width)]))
+        self.mosi = mosi = Endpoint([("data", width)])
+        self.miso = miso = Endpoint([("data", width)])
         self.cs = Signal()
 
         ###
@@ -157,10 +155,8 @@ class ClockGen(Module):
 class SpiMaster(Module):
     def __init__(self, width=8, div=20):
         self.spi = spi = Record(spi_layout)
-        self.mosi = mosi = Endpoint(EndpointDescription(
-            [("data", width)], packetized=True))
-        self.miso = miso = Endpoint(EndpointDescription(
-            [("data", width)], packetized=True))
+        self.mosi = mosi = Endpoint([("data", width)])
+        self.miso = miso = Endpoint([("data", width)])
 
         ###
 
