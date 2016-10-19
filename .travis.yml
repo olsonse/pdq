@@ -8,6 +8,7 @@ before_install:
   - pip install --src ./src -e git+https://github.com/m-labs/migen.git#egg=migen
   - pip install --src ./src -e git+https://github.com/m-labs/asyncserial.git#egg=asyncserial
   - pip install --src ./src -e git+https://github.com/m-labs/misoc.git#egg=misoc
+  - pip install colorama
   - ./.travis/get-xilinx.sh
 script:
   - PYTHONPATH=. python3 testbench/escape.py
