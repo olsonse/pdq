@@ -105,22 +105,28 @@ class Ft245r_rx(Module):
         # can only sustain 1MByte/s anyway at full speed USB
         # stb implicitly needs to be acked within a read cycle
         #clk /= 4 # slow it down
-        t_latch = int(ceil(50/clk))  # t_RDLl_Dv
-        t_drop = t_latch + int(ceil(20/clk))  # slave skew
+        t_latch = int(ceil(50/clk)) + 2 # t_RDLl_Dv + slave skew
+        t_drop = t_latch + 2  # slave skew
         t_refill = t_drop + int(ceil(50/clk))  # t_RDLh_RDLl
 
         reading = Signal()
+        rxfl = Signal()
+        rd_in = Signal()
         # proxy rxfl to slaves, drive rdl
         self.comb += [
                 pads.rdl.eq(~pads.rd_out),
                 self.busy.eq(~do.stb | do.ack)
         ]
+        self.specials += [
+            MultiRef(pads.rxfl, rxfl),
+            MultiRef(pads.rd_in, rd_in),
+        ]
         self.sync += [
-                If(~reading & ~pads.rd_in,
-                    pads.rd_out.eq(~pads.rxfl),
+                If(~reading & ~rd_in,
+                   pads.rd_out.eq(~rxfl),
                 ),
                 do.stb.eq(do.stb & ~do.ack),
-                timeline(pads.rd_in, [
+                timeline(rd_in, [
                     (0, [reading.eq(1)]),
                     (t_latch, [do.stb.eq(1), do.payload.data.eq(pads.data)]),
                     (t_drop, [pads.rd_out.eq(0)]),
