@@ -21,9 +21,8 @@ import random
 from migen import *
 from migen.genlib.misc import timeline
 from migen.genlib.record import Record
+from migen.genlib.cdc import MultiReg
 from misoc.interconnect.stream import Endpoint
-#from migen.flow.transactions import Token
-#from migen.actorlib.sim import SimActor
 
 
 class SimFt245r_rx_w(Module):
@@ -114,22 +113,22 @@ class Ft245r_rx(Module):
         rd_in = Signal()
         # proxy rxfl to slaves, drive rdl
         self.comb += [
-                pads.rdl.eq(~pads.rd_out),
+                pads.rdl.eq(~pads.g1_out),
                 self.busy.eq(~do.stb | do.ack)
         ]
         self.specials += [
-            MultiRef(pads.rxfl, rxfl),
-            MultiRef(pads.rd_in, rd_in),
+            MultiReg(pads.rxfl, rxfl),
+            MultiReg(pads.g1_in, rd_in),
         ]
         self.sync += [
                 If(~reading & ~rd_in,
-                   pads.rd_out.eq(~rxfl),
+                   pads.g1_out.eq(~rxfl),
                 ),
                 do.stb.eq(do.stb & ~do.ack),
                 timeline(rd_in, [
                     (0, [reading.eq(1)]),
                     (t_latch, [do.stb.eq(1), do.payload.data.eq(pads.data)]),
-                    (t_drop, [pads.rd_out.eq(0)]),
+                    (t_drop, [pads.g1_out.eq(0)]),
                     (t_refill, [reading.eq(0)]),
                 ])
         ]

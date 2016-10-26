@@ -17,94 +17,15 @@
 
 from migen import *
 from migen.genlib.cdc import MultiReg
-from misoc.interconnect.stream import Endpoint, StrideConverter
+from misoc.interconnect.stream import Endpoint
+from misoc.cores.liteeth_mini.mac.crc import LiteEthMACCRCEngine
 
-from .escape import Unescaper
 from .ft245r import bus_layout
+from .escape import Unescaper
+from .spi import spi_data_layout, SPISlave
 
 
 mem_layout = [("data", 16)]
-
-
-class MemWriter(Module):
-    """Handles the memory write protocol and writes data to the channel
-    memories.
-
-    Args:
-        board (Value): Address of this board.
-        dacs (list): List of :mod:`gateware.dac.Dac`.
-
-    Attributes:
-        sink (Endpoint[mem_layout]): 16 bit data sink.
-    """
-    def __init__(self, board, dacs):
-        self.sink = Endpoint(mem_layout)
-
-        ###
-
-        mems = [dac.parser.mem.get_port(write_capable=True) for dac in dacs]
-        self.specials += mems
-
-        dac = Signal(max=len(dacs))
-        adr = Signal(16)
-        end = Signal(16)
-        listen = Signal()
-        we = Signal()
-        inc = Signal()
-        pd = self.sink.payload.data
-
-        self.sink.ack.reset = 1
-
-        self.comb += Array(m.we for m in mems)[dac].eq(we)
-        for mem in mems:
-            self.comb += [
-                    mem.adr.eq(adr),
-                    mem.dat_w.eq(pd)
-            ]
-
-        self.submodules.fsm = fsm = FSM(reset_state="DEV")
-        fsm.act("DEV",
-                If(self.sink.stb,
-                    NextState("START")
-                )
-        )
-        fsm.act("START",
-                If(self.sink.stb,
-                    NextState("END")
-                )
-        )
-        fsm.act("END",
-                If(self.sink.stb,
-                    NextState("DATA")
-                )
-        )
-        fsm.act("DATA",
-                If(self.sink.stb,
-                    we.eq(listen),
-                    inc.eq(1),
-                    If(adr == end,
-                        NextState("DEV")
-                    )
-                )
-        )
-
-        self.sync += [
-                If(fsm.ongoing("DEV"),
-                    dac.eq(pd[:4]),
-                    listen.eq(pd[4:4 + len(board)] == board),
-                ),
-                If(fsm.ongoing("START"),
-                    adr.eq(pd)
-                ),
-                If(fsm.ongoing("END"),
-                    end.eq(pd)
-                ),
-                If(fsm.ongoing("DATA"),
-                    If(inc,
-                        adr.eq(adr + 1)
-                    )
-                )
-        ]
 
 
 class ResetGen(Module):
@@ -140,78 +61,193 @@ class ResetGen(Module):
         ]
 
 
-class Ctrl(Module):
-    """Control command handler.
 
-    Controls the input and output TTL signals, handled the excaped control
-    commands.
-
-    Args:
-        pads (Record): Pads containing the TTL input and output control signals
-        dacs (list): List of :mod:`gateware.dac.Dac`.
-
-    Attributes:
-        reset (Signal): Reset output from :class:`ResetGen`. Active high.
-        dcm_sel (Signal): DCM slock select. Enable clock doubler. Output.
-        sink (Endpoint[bus_layout]): 8 bit control data sink. Input.
-    """
-    def __init__(self, pads, dacs):
-        self.reset = Signal()
-        self.dcm_sel = Signal()
+class FTDI2SPI(Module):
+    def __init__(self):
         self.sink = Endpoint(bus_layout)
+        self.source = Endpoint(spi_data_layout(width=8))
+        self.eop = Signal(reset=1)
 
         ###
 
-        self.sink.ack.reset = 1
-
-        self.submodules.rg = ResetGen()
-
-        # two stage synchronizer for inputs
-        frame = Signal.like(pads.frame)
-        trigger = Signal()
-        arm = Signal()
-        start = Signal()
-        soft_trigger = Signal()
-
-        self.specials += MultiReg(pads.trigger, trigger)
-
+        unesc = Unescaper(bus_layout)
+        self.submodules += unesc
         self.sync += [
-                frame.eq(pads.frame),
-                pads.aux.eq(Cat(*(dac.out.aux for dac in dacs)) != 0),
-                #pads.go2_out.eq(
-                #    Cat(*(dac.out.sink.stb for dac in dacs)) != 0),
-                #pads.go2_out.eq(pads.go2_in), # loop
-                #pads.go2_out.eq(0),
+            If(unesc.source1.stb,
+                Case(unesc.source1.data, {
+                    0x02: self.eop.eq(0),
+                    0x03: self.eop.eq(1),
+                }),
+            )
         ]
         self.comb += [
-                self.reset.eq(self.rg.reset),
-                pads.reset.eq(ResetSignal()),
+            self.sink.connect(unesc.sink),
+            self.source.mosi.eq(unesc.source0.data),
+            self.source.stb.eq(unesc.source0.stb),
+            unesc.source0.ack.eq(1),
         ]
 
-        for dac in dacs:
-            self.sync += [
-                    dac.parser.frame.eq(frame),
-                    dac.out.trigger.eq(arm & (trigger | soft_trigger)),
-                    dac.out.arm.eq(arm),
-                    dac.parser.arm.eq(arm),
-                    dac.parser.start.eq(start),
-            ]
+
+class Protocol(Module):
+    """Handles the memory write protocol and writes data to the channel
+    memories.
+
+    Args:
+        board (Value): Address of this board.
+        dacs (list): List of :mod:`gateware.dac.Dac`.
+
+    Attributes:
+        sink (Endpoint[mem_layout]): 16 bit data sink.
+    """
+    def __init__(self, mems):
+        self.sink = Endpoint(spi_data_layout(width=8))
+        self.eop = Signal()
+        self.board = Signal(4)
+
+        # mapped registers
+        self.config = Record([
+            ("reset", 1),
+            ("clk2x", 1),
+            ("enable", 1),
+            ("trigger", 1),
+            ("aux_miso", 1),
+            ("aux_dac", 3),
+        ])
+        self.checksum = Signal(8)
+        self.frame = Signal(max=32)
+
+        ###
+
+        # CRC8-CCIT
+        crc = LiteEthMACCRCEngine(data_width=8, width=8, polynom=0x07)
+        self.submodules += crc
 
         self.sync += [
-                If(self.sink.stb,
-                    Case(self.sink.payload.data, {
-                        0x00: self.rg.trigger.eq(1),
-                        #0x01: self.rg.trigger.eq(0),
-                        0x02: soft_trigger.eq(1),
-                        0x03: soft_trigger.eq(0),
-                        0x04: arm.eq(1),
-                        0x05: arm.eq(0),
-                        0x06: self.dcm_sel.eq(1),
-                        0x07: self.dcm_sel.eq(0),
-                        0x08: start.eq(1),
-                        0x09: start.eq(0),
-                    })
-                )
+            crc.data.eq(self.sink.mosi),
+            crc.last.eq(self.checksum),
+            If(self.sink.stb & ~self.eop,
+                self.checksum.eq(crc.next),
+            ),
+        ]
+
+        cmd_layout = [
+            ("adr", 2),
+            ("mem", 1),
+            ("board", 4),
+            ("we", 1),
+        ]
+        cmd_cur = Record(cmd_layout)
+        self.comb += cmd_cur.raw_bits().eq(self.sink.mosi)
+        cmd = Record(cmd_layout)
+
+        reg_map = Array([self.config.raw_bits(), self.checksum, self.frame])
+        reg_we = Signal()
+        self.sync += [
+            If(reg_we,
+                reg_map[cmd.adr].eq(self.sink.mosi),
+            )
+        ]
+
+        mems = [mem.get_port(write_capable=True)
+                for mem in mems]
+        self.specials += mems
+        mem_adr = Signal(16)
+        mem_we = Signal()
+        mem_dat_wh = Signal(8)
+        mem_dat_r = Signal(16)
+        self.comb += [
+            [[
+                mem.adr.eq(mem_adr),
+                mem.dat_w.eq(Cat(self.sink.mosi, mem_dat_wh))
+            ] for mem in mems],
+            Array([mem.we for mem in mems])[cmd.adr].eq(mem_we),
+            mem_dat_r.eq(Array([mem.dat_r for mem in mems])[cmd.adr]),
+        ]
+
+        fsm = ResetInserter()(CEInserter()(FSM(reset_state="CMD")))
+        self.submodules += fsm
+        self.comb += [
+            fsm.reset.eq(self.eop),
+            fsm.ce.eq(self.sink.stb),
+        ]
+
+        fsm.act("CMD",
+            NextValue(cmd.raw_bits(), cmd_cur.raw_bits()),
+            If((cmd_cur.board == self.board) | (cmd_cur.board == 0xf),
+                If(cmd_cur.mem,
+                    NextState("MEM_ADRH"),
+                ).Else(
+                    If(cmd_cur.we,
+                        NextState("REG_WRITE"),
+                    ).Else(
+                        NextState("REG_READ"),
+                    ),
+                ),
+            ).Else(
+                NextState("IGNORE"),
+            ),
+        )
+        fsm.act("IGNORE")
+        fsm.act("REG_WRITE",
+            reg_we.eq(1),
+        )
+        fsm.act("REG_READ",
+            self.sink.ack.eq(1),  # drive miso
+            self.sink.miso.eq(reg_map[cmd.adr]),
+        )
+        fsm.act("MEM_ADRH",
+            NextValue(mem_adr[8:], self.sink.mosi),
+            NextState("MEM_ADRL"),
+        )
+        fsm.act("MEM_ADRL",
+            NextValue(mem_adr[:8], self.sink.mosi),
+            If(cmd.we,
+                NextState("MEM_WRITEH"),
+            ).Else(
+                NextState("MEM_READH"),
+            ),
+        )
+        fsm.act("MEM_WRITEH",
+            NextValue(mem_dat_wh, self.sink.mosi),
+            NextState("MEM_WRITEL"),
+        )
+        fsm.act("MEM_WRITEL",
+            mem_we.eq(1),
+            NextValue(mem_adr, mem_adr + 1),
+            NextState("MEM_WRITEH"),
+        )
+        fsm.act("MEM_READH",
+            self.sink.ack.eq(1),  # drive miso
+            self.sink.miso.eq(mem_dat_r[8:]),
+            NextState("MEM_READL"),
+        )
+        fsm.act("MEM_READL",
+            self.sink.ack.eq(1),  # drive miso
+            self.sink.miso.eq(mem_dat_r[:8]),
+            NextValue(mem_adr, mem_adr + 1),
+            NextState("MEM_READH"),
+        )
+
+
+class Arbiter(Module):
+    def __init__(self, width=8):
+        self.eop0 = Signal()
+        self.eop1 = Signal()
+        self.sink0 = Endpoint(spi_data_layout(width))
+        self.sink1 = Endpoint(spi_data_layout(width))
+        self.eop = Signal(reset=1)
+        self.source = Endpoint(spi_data_layout(width))
+
+        ###
+
+        self.comb += [
+            If(self.eop0,
+                self.eop.eq(self.eop0),
+                self.sink0.connect(self.source),
+            ).Else(
+                self.eop.eq(self.eop1),
+                self.sink1.connect(self.source),
+            )
         ]
 
 
@@ -225,18 +261,65 @@ class Comm(Module):
     Attributes:
         sink (Endpoint[bus_layout]): 8 bit data sink containing both the control
             sequencences and the data stream.
+
+    Control command handler.
+
+    Controls the input and output TTL signals, handles the excaped control
+    commands.
+
+    Args:
+        pads (Record): Pads containing the TTL input and output control signals
+        dacs (list): List of :mod:`gateware.dac.Dac`.
+
+    Attributes:
+        reset (Signal): Reset output from :class:`ResetGen`. Active high.
+        dcm_sel (Signal): DCM slock select. Enable clock doubler. Output.
+        sink (Endpoint[bus_layout]): 8 bit control data sink. Input.
     """
     def __init__(self, ctrl_pads, dacs):
-        self.submodules.unescaper = Unescaper(bus_layout, 0xa5)
-        self.sink = self.unescaper.sink
-        self.submodules.conv = StrideConverter(bus_layout, mem_layout)
-        self.submodules.memwriter = MemWriter(~ctrl_pads.adr, dacs)  # adr active low
-        self.submodules.ctrl = Ctrl(ctrl_pads, dacs)
-
-        ###
+        rg = ResetGen()
+        spi = SPISlave(width=8)
+        f2s = FTDI2SPI()
+        arb = Arbiter()
+        proto = Protocol([dac.parser.mem for dac in dacs])
+        self.submodules += proto, rg, spi, f2s, arb
+        self.proto = proto
+        self.ftdi_bus = f2s.sink
 
         self.comb += [
-                self.unescaper.source0.connect(self.conv.sink),
-                self.conv.source.connect(self.memwriter.sink),
-                self.unescaper.source1.connect(self.ctrl.sink),
+            spi.spi.cs_n.eq(ctrl_pads.frame[0]),
+            spi.spi.clk.eq(ctrl_pads.frame[1]),
+            spi.spi.mosi.eq(ctrl_pads.frame[2]),
+            spi.data.connect(arb.sink0),
+            arb.eop0.eq(spi.cs_n),
+            spi.reset.eq(spi.cs_n),
+            f2s.source.connect(arb.sink1),
+            arb.eop1.eq(f2s.eop),
+            arb.source.connect(proto.sink),
+            proto.eop.eq(arb.eop),
         ]
+
+        trigger = Signal()
+        self.specials += MultiReg(ctrl_pads.trigger, trigger)
+
+        aux_dac = Signal()
+
+        self.comb += [
+            proto.board.eq(~ctrl_pads.board),  # pcb inverted
+            ctrl_pads.reset.eq(ResetSignal()),
+            rg.trigger.eq(proto.config.reset),
+            aux_dac.eq(proto.config.aux_dac &
+                       Cat([dac.out.aux for dac in dacs]) != 0),
+            ctrl_pads.aux.eq(Mux(proto.config.aux_miso,
+                                 spi.spi.miso, aux_dac)),
+        ]
+
+        for dac in dacs:
+            self.sync += [
+                    dac.parser.frame.eq(proto.frame),
+                    dac.out.trigger.eq(proto.config.enable &
+                                       (trigger | proto.config.trigger)),
+                    dac.out.arm.eq(proto.config.enable),
+                    dac.parser.arm.eq(proto.config.enable),
+                    dac.parser.start.eq(proto.config.enable),
+            ]

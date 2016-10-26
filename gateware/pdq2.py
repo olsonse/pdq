@@ -41,7 +41,6 @@ class Pdq2Base(Module):
         comm (Module): :mod:`gateware.comm.Comm`.
     """
     def __init__(self, ctrl_pads, mem_depths=(1 << 13, 1 << 13, 1 << 12)):
-        # (1 << 13, (1 << 12) + (1 << 11), (1 << 12) + (1 << 11))
         self.dacs = []
         for i, depth in enumerate(mem_depths):
             dac = Dac(mem_depth=depth)
@@ -57,8 +56,8 @@ class Pdq2Sim(Module):
         ("frame", 3),
         ("trigger", 1),
         ("reset", 1),
-        ("go2_in", 1),
-        ("go2_out", 1),
+        ("g2_in", 1),
+        ("g2_out", 1),
     ]
 
     def __init__(self, mem, skip_ft245r=True):
@@ -66,13 +65,13 @@ class Pdq2Sim(Module):
         self.ctrl_pads.adr.reset = 0b1111
         self.ctrl_pads.trigger.reset = 1
         self.ctrl_pads.frame.reset = 0b000
-        self.submodules.dut = ResetInserter(["sys"])(Pdq2Base(self.ctrl_pads))
+        self.submodules.dut = ResetInserter()(Pdq2Base(self.ctrl_pads))
         self.comb += self.dut.reset_sys.eq(self.dut.comm.ctrl.reset)
         if skip_ft245r:
             reader = SimReader(mem)
         else:
             reader = SimFt245r_rx(mem)
-        self.submodules.reader = ResetInserter(["sys"])(reader)
+        self.submodules.reader = ResetInserter()(reader)
         self.comb += self.reader.reset_sys.eq(self.dut.comm.ctrl.reset)
         self.comb += self.reader.source.connect(self.dut.comm.sink)
         # override high-ack during reset draining the reader
@@ -80,8 +79,8 @@ class Pdq2Sim(Module):
                                                ~self.dut.comm.ctrl.reset)
         self.outputs = []
 
+    @passive
     def do_simulation(self):
-        yield "passive"
         self.outputs.append([(yield dac.out.data) for dac in selfp.dut.dacs])
 
 
@@ -93,16 +92,14 @@ class CRG(Module):
 
     Attributes:
         rst (Signal): Reset input.
-        clk_p (Signal): Positive clock output.
-        clk_n (Signal): Negative clock output.
         dcm_sel (Signal): Select doubled clock. Input.
         dcm_locked (Signal): DCM locked. Output.
         cd_sys (ClockDomain): System clock domain driven.
+        cd_sys_n (ClockDomain): Inverted system clock domain driven.
     """
     def __init__(self, platform):
         self.clock_domains.cd_sys = ClockDomain()
-        self.clk_p = self.cd_sys.clk
-        self.clk_n = Signal()
+        self.clock_domains.cd_sys_n = ClockDomain(reset_less=True)
         self.rst = Signal()
         self.dcm_locked = Signal()
         self.dcm_sel = Signal()
@@ -144,10 +141,10 @@ class CRG(Module):
                 )
         self.specials += Instance("BUFGMUX",
                 i_I0=clkin_sdr, i_I1=dcm_clk2x, i_S=self.dcm_sel,
-                o_O=self.clk_p)
+                o_O=self.cd_sys.clk)
         self.specials += Instance("BUFGMUX",
                 i_I0=~clkin_sdr, i_I1=dcm_clk2x180, i_S=self.dcm_sel,
-                o_O=self.clk_n)
+                o_O=self.cd_sys_n.clk)
         self.specials += AsyncResetSynchronizer(
             self.cd_sys, ~self.dcm_locked | self.rst)
 
@@ -159,25 +156,26 @@ class Pdq2(Pdq2Base):
     generator :mod:`CRG`, and the DAC output signals.
     Delegates the wiring of the remaining modules to :mod:`Pdq2Base`.
 
-    ``pads.go2_out`` is assigned the DCM locked signal.
+    ``pads.g2_out`` is assigned the DCM locked signal.
 
     Args:
         platform (Platform): PDQ2 platform.
     """
-    def __init__(self, platform):
+    def __init__(self, platform, **kwargs):
         self.platform = platform
         ctrl_pads = platform.request("ctrl")
-        Pdq2Base.__init__(self, ctrl_pads)
+        Pdq2Base.__init__(self, ctrl_pads, **kwargs)
         self.submodules.crg = CRG(platform)
         comm_pads = platform.request("comm")
         self.submodules.reader = Ft245r_rx(comm_pads)
         self.comb += [
-                self.reader.source.connect(self.comm.sink),
-                self.crg.rst.eq(self.comm.ctrl.reset),
-                ctrl_pads.go2_out.eq(self.crg.dcm_locked),
-                self.crg.dcm_sel.eq(self.comm.ctrl.dcm_sel)
+                self.reader.source.connect(self.comm.ftdi_bus),
+                self.crg.rst.eq(self.comm.proto.config.reset),
+                ctrl_pads.g2_out.eq(self.crg.dcm_locked),
+                self.crg.dcm_sel.eq(self.comm.proto.config.clk2x)
         ]
 
+        sys_p, sys_n = ClockSignal("sys"), ClockSignal("sys_n")
         for i, dac in enumerate(self.dacs):
             pads = platform.request("dac", i)
             # inverted clocks ensure setup and hold times of data
@@ -189,14 +187,14 @@ class Pdq2(Pdq2Base):
             ]
 
             self.specials += Instance("ODDR2",
-                    i_C0=self.crg.clk_p, i_C1=self.crg.clk_n, i_CE=ce,
+                    i_C0=sys_p, i_C1=sys_n, i_CE=ce,
                     i_D0=0, i_D1=1, i_R=0, i_S=0, o_Q=pads.clk_p)
             self.specials += Instance("ODDR2",
-                    i_C0=self.crg.clk_p, i_C1=self.crg.clk_n, i_CE=ce,
+                    i_C0=sys_p, i_C1=sys_n, i_CE=ce,
                     i_D0=1, i_D1=0, i_R=0, i_S=0, o_Q=pads.clk_n)
             dclk = Signal()
             self.specials += Instance("ODDR2",
-                    i_C0=self.crg.clk_p, i_C1=self.crg.clk_n, i_CE=ce,
+                    i_C0=sys_p, i_C1=sys_n, i_CE=ce,
                     i_D0=0, i_D1=1, i_R=0, i_S=0, o_Q=dclk)
             self.specials += Instance("OBUFDS",
                     i_I=dclk, o_O=pads.data_clk_p, o_OB=pads.data_clk_n)

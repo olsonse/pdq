@@ -30,7 +30,7 @@ line_layout = [
             ("trigger", 1), # wait for trigger before
             ("silence", 1), # shut down clock
             ("aux", 1), # aux channel value
-            ("shift", 4), # time shift
+            ("shift", 4), # time shift exponent
             ("end", 1), # return to jump table after
             ("clear", 1), # clear persistent state (phase accu)
             ("wait", 1), # wait for trigger after
