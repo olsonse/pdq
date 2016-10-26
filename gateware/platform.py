@@ -27,8 +27,8 @@ _io = [
             Subsignal("rdl", Pins("P97")),
             Subsignal("rxfl", Pins("P54")),
 
-            Subsignal("g1_out", Pins("P159")), #GO_1
-            Subsignal("g1_in", Pins("P102")), #G1
+            Subsignal("g1_in", Pins("P159")), #GO_1
+            Subsignal("g1_out", Pins("P102")), #G1
             IOStandard("LVCMOS25"),
         ),
 
@@ -40,8 +40,8 @@ _io = [
             Subsignal("frame", Pins("P118 P124 P98")), #F2 F3 F4
             Subsignal("aux", Pins("P99")), #F5 out
 
-            Subsignal("g2_out", Pins("P169")), #GO_2
-            Subsignal("g2_in", Pins("P100")), #G2
+            Subsignal("g2_in", Pins("P169")), #GO_2
+            Subsignal("g2_out", Pins("P100")), #G2
             IOStandard("LVCMOS25"),
         ),
 
