@@ -22,20 +22,10 @@ from gateware.platform import Platform
 from gateware.pdq2 import Pdq2
 
 
-cfgs = [
-    (1 << 13, 1 << 13, 1 << 12),
-    (1 << 13, 1 << 13),
-    (1 << 14,),
-    # (4 << 11, (2 + 1) << 11, (2 + 1) << 11),
-    # ((4 + 1) << 11, (4 + 1) << 11),
-    # ((8 + 2) << 11,),
-]
-
-
 def _main():
-    for mems in cfgs:
+    for mems in (8, 6, 6), (10, 10), (20,):
         platform = Platform()
-        pdq = Pdq2(platform, mem_depths=mems)
+        pdq = Pdq2(platform, mem_depths=[i << 10 for i in mems])
         platform.build(pdq, build_name="pdq2_{}ch".format(len(mems)),
                        toolchain_path=os.environ.get("XILINX_PATH"))
 

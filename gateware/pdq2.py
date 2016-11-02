@@ -149,6 +149,7 @@ class CRG(Module):
             self.cd_sys, ~self.dcm_locked | self.rst)
 
 
+@SplitMemory()
 class Pdq2(Pdq2Base):
     """PDQ2 Top module.
 
