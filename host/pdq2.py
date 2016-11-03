@@ -44,6 +44,28 @@ def discrete_compensate(c):
         raise ValueError("Only splines up to cubic order are supported.")
 
 
+class CRC:
+    def __init__(self, width=8, poly=0x07):
+        self.poly = poly
+        self.width = width
+        self._table = [self._byte(i) for i in range(1 << width)]
+
+    def _byte(self, i):
+        for j in range(self.width):
+            i <<= 1
+            if i & (1 << self.width):
+                i ^= self.poly
+        return i & ((1 << self.width) - 1)
+
+    def __call__(self, msg, crc=0):
+        for b in msg:
+            crc = self._table[b ^ crc]
+        return crc
+
+
+crc8 = CRC(width=8, poly=0x07)
+
+
 class Segment:
     """Serialize the lines for a single Segment.
 
@@ -173,10 +195,9 @@ class Channel:
         max_data (int): Number of 16 bit data words per channel.
         segments (list[Segment]): Segments added to this channel.
     """
-    num_frames = 8
-    max_data = 4*(1 << 10)  # 8kx16 8kx16 4kx16
-
-    def __init__(self):
+    def __init__(self, max_data=6 << 10, num_frames=8):
+        self.max_data = max_data
+        self.num_frames = num_frames
         self.segments = []
 
     def clear(self):
@@ -264,32 +285,42 @@ class Pdq2:
         dev (file-like): File handle to use as device. If passed, ``url`` is
             ignored.
         num_boards (int): Number of boards in this stack.
+        num_dacs (int): Number of DAC outputs per board.
+        num_frames (int): Number of frames supported.
 
     Attributes:
-        num_dacs (int): Number of DAC outputs per board.
         num_channels (int): Number of channels in this stack.
         num_boards (int): Number of boards in this stack.
+        num_dacs (int): Number of DAC outputs per board.
+        num_frames (int): Number of frames supported.
         channels (list[Channel]): List of :class:`Channel` in this stack.
     """
-    num_dacs = 3
     freq = 50e6
 
-    _escape = b"\xa5"
-    _commands = "RESET TRIGGER ARM DCM START".split()
+    _mem_sizes = [(), (20,), (10, 10), (8, 6, 6)]  # 10kx16 units
 
-    def __init__(self, url=None, dev=None, num_boards=3):
+    def __init__(self, url=None, dev=None, num_boards=3, num_dacs=3,
+                 num_frames=8):
         if dev is None:
             dev = serial.serial_for_url(url)
         self.dev = dev
         self.num_boards = num_boards
+        self.num_dacs = num_dacs
+        self.num_frames = num_frames
         self.num_channels = self.num_dacs * self.num_boards
-        self.channels = [Channel() for i in range(self.num_channels)]
+        m = self._mem_sizes[num_dacs]
+        self.channels = [Channel(m[j] << 11, num_frames)
+                         for i in range(num_boards)
+                         for j in range(num_dacs)]
 
     def get_num_boards(self):
         return self.num_boards
 
     def get_num_channels(self):
         return self.num_channels
+
+    def get_num_frames(self):
+        return self.num_frames
 
     def get_freq(self):
         return self.freq
@@ -309,11 +340,20 @@ class Pdq2:
             data (bytes): Data to write.
         """
         logger.debug("> %r", data)
-        written = self.dev.write(data)
+        written = self.dev.write(b"\x02" + data + b"\x03")
         if isinstance(written, int):
-            assert written == len(data)
+            assert written == len(data) + 2, (written, len(data))
+        self.checksum = crc8(data, self.checksum)
 
-    def cmd(self, cmd, enable):
+    def _cmd(self, we, is_mem, board, adr):
+        return (adr << 0) | (is_mem << 2) | (board << 3) | (we << 7)
+
+    def write_reg(self, board, adr, data):
+        self.write(struct.pack(
+            "<bb", self._cmd(True, False, board, adr), data))
+
+    def set_config(self, reset=False, clk2x=False, enable=True,
+                   trigger=False, aux_miso=False, aux_dac=0b111, board=0xf):
         """Execute a command.
 
         Args:
@@ -322,10 +362,14 @@ class Pdq2:
             enable (bool): Enable (``True``) or disable (``False``) the
                 feature.
         """
-        cmd = self._commands.index(cmd) << 1
-        if not enable:
-            cmd |= 1
-        self.write(struct.pack("cb", self._escape, cmd))
+        self.write_reg(board, 0, (reset << 0) | (clk2x << 1) | (enable << 2) |
+                       (trigger << 3) | (aux_miso << 4) | (aux_dac << 5))
+
+    def set_checksum(self, crc=0, board=0xf):
+        self.write_reg(board, 1, crc)
+
+    def set_frame(self, frame, board=0xf):
+        self.write_reg(board, 2, frame)
 
     def write_mem(self, channel, data, start_addr=0):
         """Write to channel memory.
@@ -337,10 +381,8 @@ class Pdq2:
             start_addr (int): Start address to write data to.
         """
         board, dac = divmod(channel, self.num_dacs)
-        data = struct.pack("<HHH", (board << 4) | dac, start_addr,
-                           start_addr + len(data)//2 - 1) + data
-        data = data.replace(self._escape, self._escape + self._escape)
-        self.write(data)
+        self.write(struct.pack("<bH", self._cmd(True, True, board, dac),
+                               start_addr) + data)
 
     def program_segments(self, segments, data):
         """Append the wavesynth lines to the given segments.
@@ -407,14 +449,12 @@ class Pdq2:
     def flush(self):
         self.dev.flush()
 
-    def park(self):
-        self.cmd("START", False)
-        self.cmd("TRIGGER", True)
+    def disable(self):
+        self.set_config(enable=False)
         self.flush()
 
-    def unpark(self):
-        self.cmd("TRIGGER", False)
-        self.cmd("START", True)
+    def enable(self):
+        self.set_config(enable=True)
         self.flush()
 
     def ping(self):

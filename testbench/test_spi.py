@@ -68,7 +68,6 @@ class TB(Module):
 
 
 if __name__ == "__main__":
-    from collections import defaultdict
     logging.basicConfig(
         level=logging.INFO,
         format="[%(name)s.%(funcName)s:%(lineno)d] %(message)s")

@@ -123,7 +123,7 @@ class Protocol(Module):
         self.submodules += crc
 
         self.comb += [
-            crc.data.eq(self.sink.mosi),
+            crc.data.eq(self.sink.mosi[::-1]),
             crc.last.eq(self.checksum),
         ]
         self.sync += [
