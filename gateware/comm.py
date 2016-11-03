@@ -122,19 +122,21 @@ class Protocol(Module):
         crc = LiteEthMACCRCEngine(data_width=8, width=8, polynom=0x07)
         self.submodules += crc
 
-        self.sync += [
+        self.comb += [
             crc.data.eq(self.sink.mosi),
             crc.last.eq(self.checksum),
+        ]
+        self.sync += [
             If(self.sink.stb & ~self.eop,
                 self.checksum.eq(crc.next),
             ),
         ]
 
         cmd_layout = [
-            ("adr", 2),
-            ("mem", 1),
-            ("board", 4),
-            ("we", 1),
+            ("adr", 2),     # reg or mem
+            ("is_mem", 1),  # is_mem/is_reg_n
+            ("board", 4),   # 0xf: broadcast
+            ("we", 1),      # write/read_n
         ]
         cmd_cur = Record(cmd_layout)
         self.comb += cmd_cur.raw_bits().eq(self.sink.mosi)
@@ -174,7 +176,7 @@ class Protocol(Module):
         fsm.act("CMD",
             NextValue(cmd.raw_bits(), cmd_cur.raw_bits()),
             If((cmd_cur.board == self.board) | (cmd_cur.board == 0xf),
-                If(cmd_cur.mem,
+                If(cmd_cur.is_mem,
                     NextState("MEM_ADRH"),
                 ).Else(
                     If(cmd_cur.we,
@@ -189,7 +191,7 @@ class Protocol(Module):
         )
         fsm.act("IGNORE")
         fsm.act("REG_WRITE",
-            reg_we.eq(1),
+            reg_we.eq(self.sink.stb),
         )
         fsm.act("REG_READ",
             self.sink.ack.eq(1),  # drive miso
@@ -212,7 +214,7 @@ class Protocol(Module):
             NextState("MEM_WRITEL"),
         )
         fsm.act("MEM_WRITEL",
-            mem_we.eq(1),
+            mem_we.eq(self.sink.stb),
             NextValue(mem_adr, mem_adr + 1),
             NextState("MEM_WRITEH"),
         )
@@ -308,14 +310,17 @@ class Comm(Module):
             proto.board.eq(~ctrl_pads.board),  # pcb inverted
             ctrl_pads.reset.eq(ResetSignal()),
             rg.trigger.eq(proto.config.reset),
-            aux_dac.eq(proto.config.aux_dac &
-                       Cat([dac.out.aux for dac in dacs]) != 0),
             ctrl_pads.aux.eq(Mux(proto.config.aux_miso,
                                  spi.spi.miso, aux_dac)),
         ]
 
+        self.sync += [
+            aux_dac.eq(proto.config.aux_dac &
+                       Cat([dac.out.aux for dac in dacs]) != 0),
+        ]
+
         for dac in dacs:
-            self.sync += [
+            self.comb += [
                     dac.parser.frame.eq(proto.frame),
                     dac.out.trigger.eq(proto.config.enable &
                                        (trigger | proto.config.trigger)),

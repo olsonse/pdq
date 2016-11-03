@@ -115,6 +115,7 @@ class SPISlave(Module):
             * `stb`: data available in mosi and data read from miso.
             * `ack`: in half-duplex mode, drive miso on the combined
                 miso/mosi data line
+
         cs_n (Signal): use to `s.reset.eq(s.cs_n)` and for framing logic.
     """
     def __init__(self, width=8):

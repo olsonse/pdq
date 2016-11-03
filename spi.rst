@@ -11,10 +11,10 @@ spi: slave
 8 bit header (msb-to-lsb):
   1 read/write_b
   4 board addr 0xf=all
-  1 mem/eg
+  1 mem/reg
   2 addr
 
-2 bit reg map:
+2 bit addr reg:
   8 config:
     1 reset
     1 dcm
@@ -25,12 +25,14 @@ spi: slave
   8 checksum 
   8 current frame
 
-2 bit mem sel
+2 bit addr mem sel:
   memory0
   memory1
   memory2
 
+8 bit reg data read/write
+
 16 bit mem addr (write with auto-increasing address):
-18 bit mem data
+n x 16 bit mem data read/write
 
 8 bit etx (only parallel protocol)
