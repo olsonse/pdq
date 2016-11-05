@@ -24,6 +24,20 @@ from misoc.interconnect.stream import Endpoint
 
 
 class Debouncer(Module):
+    """Debounce a signal.
+
+    The initial change on input is passed through immediately. But
+    further changes are suppressed for `cycles`.
+
+    Args:
+        cycles (int): Block furhter level changes for that many cycles
+            after an initial change.
+
+    Attributes:
+        i (Signal): Input, needs a `MultiReg` in front of it
+            if this is an asynchronous signal.
+        o (Signal): Debounced output.
+    """
     def __init__(self, cycles=1):
         self.i = Signal()
         self.o = Signal()
@@ -55,6 +69,20 @@ class Debouncer(Module):
 
 
 class ShiftRegister(Module):
+    """Shift register for an SPI slave.
+
+    Args:
+        width (int): Register width in bits.
+
+    Attributes:
+        i (Signal): Serial input.
+        o (Signal): Serial output.
+        data (Signal(width)): Content of the shift register.
+        next (Signal(width)): Combinatorial content of the
+            register in the next cycle.
+        stb (Signal): Strobe signal indicating that `width` bits have been
+            shifted (in and out) and the register value can be swapped.
+    """
     def __init__(self, width):
         self.i = Signal()
         self.o = Signal()
@@ -100,12 +128,18 @@ def spi_data_layout(width):
 @ResetInserter()
 class SPISlave(Module):
     """SPI slave.
-    CLK_PHA, CLK_POL = 0,0
-    MSB first
+
+        * CLK_PHA, CLK_POL = 0,0
+        * MSB first
+
+    Args:
+        width (int): Shift register width in bits.
 
     Attributes:
-        spi (Record): SPI bus record. Use `oe_s` to wire up a tristate
-            half-duplex data line.
+        spi (Record): SPI bus record consisting of `cs_n`, `clk`, `mosi`,
+            `miso`, `oe_s`, and `oe_m`. Use `oe_s` (driven by the slave) to
+            wire up a tristate half-duplex data line. Use `oe_m` on the master
+            side.
         data (Endpoint): SPI parallel communication stream.
 
             * `mosi`: `width` bits read on the mosi line in the previous clock
