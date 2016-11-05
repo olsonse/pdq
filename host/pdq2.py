@@ -315,13 +315,14 @@ class Pdq2:
     """
     freq = 50e6
 
-    _mem_sizes = [(), (20,), (10, 10), (8, 6, 6)]  # 10kx16 units
+    _mem_sizes = [None, (20,), (10, 10), (8, 6, 6)]  # 10kx16 units
 
     def __init__(self, url=None, dev=None, num_boards=3, num_dacs=3,
                  num_frames=8):
         if dev is None:
             dev = serial.serial_for_url(url)
         self.dev = dev
+        self.checksum = 0
         self.num_boards = num_boards
         self.num_dacs = num_dacs
         self.num_frames = num_frames
@@ -352,7 +353,7 @@ class Pdq2:
         del self.dev
 
     def write(self, data):
-        """Write data to the PDQ2 board.
+        """Write data to the PDQ2 board over USB/parallel.
 
         Args:
             data (bytes): Data to write.
@@ -367,26 +368,43 @@ class Pdq2:
         return (adr << 0) | (is_mem << 2) | (board << 3) | (we << 7)
 
     def write_reg(self, board, adr, data):
+        """Write to a configuration register
+
+        Args:
+            board (int): Board to write to (0-0xe), 0xf for all boards.
+            adr (int): Register address to write to (0-3)
+            data (int): Data to write (1 byte)
+        """
         self.write(struct.pack(
-            "<bb", self._cmd(True, False, board, adr), data))
+            "<BB", self._cmd(True, False, board, adr), data))
 
     def set_config(self, reset=False, clk2x=False, enable=True,
                    trigger=False, aux_miso=False, aux_dac=0b111, board=0xf):
-        """Execute a command.
+        """Set the configuration register.
 
         Args:
-            cmd (str): Command to execute. One of (``RESET``, ``TRIGGER``,
-                ``ARM``, ``DCM``, ``START``).
-            enable (bool): Enable (``True``) or disable (``False``) the
-                feature.
+            reset (bool): Reset the board. Memory is not reset. Self-clearing.
+            clk2x (bool): Enable the clock multiplier (100 MHz instead of 50
+                MHz)
+            enable (bool): Enable the channel data parsers and spline interpolators.
+            trigger (bool): Soft trigger. Logical or with the hardware trigger.
+            aux_miso (bool): Drive SPI MISO on the AUX/F5 ttl port of each
+                board. If `False`, drive the masked logical or of the DAC
+                channels' aux data.
+            aux_dac (int): Mask for AUX/F5. Each bit represents one channel.
+                AUX/F5 is: `aux_miso ? spi_miso :
+                (aux_dac & Cat(_.aux for _ in channels) != 0)`
+            board (int): Board to write to (0-0xe), 0xf for all boards.
         """
         self.write_reg(board, 0, (reset << 0) | (clk2x << 1) | (enable << 2) |
                        (trigger << 3) | (aux_miso << 4) | (aux_dac << 5))
 
     def set_checksum(self, crc=0, board=0xf):
+        """Set/reset the checksum register."""
         self.write_reg(board, 1, crc)
 
     def set_frame(self, frame, board=0xf):
+        """Set the current frame."""
         self.write_reg(board, 2, frame)
 
     def write_mem(self, channel, data, start_addr=0):
@@ -399,7 +417,7 @@ class Pdq2:
             start_addr (int): Start address to write data to.
         """
         board, dac = divmod(channel, self.num_dacs)
-        self.write(struct.pack("<bH", self._cmd(True, True, board, dac),
+        self.write(struct.pack("<BH", self._cmd(True, True, board, dac),
                                start_addr) + data)
 
     def program_segments(self, segments, data):
@@ -467,12 +485,12 @@ class Pdq2:
     def flush(self):
         self.dev.flush()
 
-    def disable(self):
-        self.set_config(enable=False)
+    def disable(self, **kwargs):
+        self.set_config(enable=False, **kwargs)
         self.flush()
 
-    def enable(self):
-        self.set_config(enable=True)
+    def enable(self, **kwargs):
+        self.set_config(enable=True, **kwargs)
         self.flush()
 
     def ping(self):
