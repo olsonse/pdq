@@ -63,6 +63,9 @@ class ResetGen(Module):
 
 
 class FTDI2SPI(Module):
+    """Converts parallel data stream from FTDI chip into framed
+    SPI-like data.
+    """
     def __init__(self):
         self.sink = Endpoint(bus_layout)
         self.source = Endpoint(spi_data_layout(width=8))
@@ -101,7 +104,7 @@ class Arbiter(Module):
         ###
 
         self.comb += [
-            If(~self.eop0,
+            If(~self.eop0,  # has priority
                 self.eop.eq(self.eop0),
                 self.sink0.connect(self.source),
             ).Else(
@@ -178,12 +181,12 @@ class Protocol(Module):
         self.specials += mems
         mem_adr = Signal(16)
         mem_we = Signal()
-        mem_dat_wh = Signal(8)
+        mem_dat_wl = Signal(8)
         mem_dat_r = Signal(16)
         self.comb += [
             [[
                 mem.adr.eq(mem_adr),
-                mem.dat_w.eq(Cat(self.sink.mosi, mem_dat_wh))
+                mem.dat_w.eq(Cat(mem_dat_wl, self.sink.mosi))
             ] for mem in mems],
             Array([mem.we for mem in mems])[cmd.adr].eq(mem_we),
             mem_dat_r.eq(Array([mem.dat_r for mem in mems])[cmd.adr]),
@@ -200,7 +203,7 @@ class Protocol(Module):
             NextValue(cmd.raw_bits(), cmd_cur.raw_bits()),
             If((cmd_cur.board == self.board) | (cmd_cur.board == 0xf),
                 If(cmd_cur.is_mem,
-                    NextState("MEM_ADRH"),
+                    NextState("MEM_ADRL"),
                 ).Else(
                     If(cmd_cur.we,
                         NextState("REG_WRITE"),
@@ -220,37 +223,37 @@ class Protocol(Module):
             self.sink.ack.eq(1),  # drive miso
             self.sink.miso.eq(reg_map[cmd.adr]),
         )
-        fsm.act("MEM_ADRH",
-            NextValue(mem_adr[8:], self.sink.mosi),
-            NextState("MEM_ADRL"),
-        )
         fsm.act("MEM_ADRL",
             NextValue(mem_adr[:8], self.sink.mosi),
+            NextState("MEM_ADRH"),
+        )
+        fsm.act("MEM_ADRH",
+            NextValue(mem_adr[8:], self.sink.mosi),
             If(cmd.we,
-                NextState("MEM_WRITEH"),
+                NextState("MEM_WRITEL"),
             ).Else(
-                NextState("MEM_READH"),
+                NextState("MEM_READL"),
             ),
         )
-        fsm.act("MEM_WRITEH",
-            NextValue(mem_dat_wh, self.sink.mosi),
-            NextState("MEM_WRITEL"),
-        )
         fsm.act("MEM_WRITEL",
-            mem_we.eq(self.sink.stb),
-            NextValue(mem_adr, mem_adr + 1),
+            NextValue(mem_dat_wl, self.sink.mosi),
             NextState("MEM_WRITEH"),
         )
-        fsm.act("MEM_READH",
-            self.sink.ack.eq(1),  # drive miso
-            self.sink.miso.eq(mem_dat_r[8:]),
-            NextState("MEM_READL"),
+        fsm.act("MEM_WRITEH",
+            mem_we.eq(self.sink.stb),
+            NextValue(mem_adr, mem_adr + 1),
+            NextState("MEM_WRITEL"),
         )
         fsm.act("MEM_READL",
             self.sink.ack.eq(1),  # drive miso
             self.sink.miso.eq(mem_dat_r[:8]),
-            NextValue(mem_adr, mem_adr + 1),
             NextState("MEM_READH"),
+        )
+        fsm.act("MEM_READH",
+            self.sink.ack.eq(1),  # drive miso
+            self.sink.miso.eq(mem_dat_r[8:]),
+            NextValue(mem_adr, mem_adr + 1),
+            NextState("MEM_READL"),
         )
 
 
@@ -287,6 +290,7 @@ class Comm(Module):
         proto = Protocol([dac.parser.mem for dac in dacs])
         self.submodules += proto, rg, spi, f2s, arb
         self.proto = proto
+        self.rg = rg
         self.ftdi_bus = f2s.sink
 
         self.comb += [
@@ -312,9 +316,6 @@ class Comm(Module):
             rg.trigger.eq(proto.config.reset),
             ctrl_pads.aux.eq(Mux(proto.config.aux_miso,
                                  spi.spi.miso, aux_dac)),
-        ]
-
-        self.sync += [
             aux_dac.eq(proto.config.aux_dac &
                        Cat([dac.out.aux for dac in dacs]) != 0),
         ]
