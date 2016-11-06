@@ -85,6 +85,29 @@ class FTDI2SPI(Module):
             self.source.mosi.eq(unesc.source0.data),
             self.source.stb.eq(unesc.source0.stb),
             unesc.source0.ack.eq(1),
+            unesc.source1.ack.eq(1),
+        ]
+
+
+class Arbiter(Module):
+    def __init__(self, width=8):
+        self.eop0 = Signal()
+        self.eop1 = Signal()
+        self.sink0 = Endpoint(spi_data_layout(width))
+        self.sink1 = Endpoint(spi_data_layout(width))
+        self.eop = Signal(reset=1)
+        self.source = Endpoint(spi_data_layout(width))
+
+        ###
+
+        self.comb += [
+            If(~self.eop0,
+                self.eop.eq(self.eop0),
+                self.sink0.connect(self.source),
+            ).Else(
+                self.eop.eq(self.eop1),
+                self.sink1.connect(self.source),
+            )
         ]
 
 
@@ -231,28 +254,6 @@ class Protocol(Module):
         )
 
 
-class Arbiter(Module):
-    def __init__(self, width=8):
-        self.eop0 = Signal()
-        self.eop1 = Signal()
-        self.sink0 = Endpoint(spi_data_layout(width))
-        self.sink1 = Endpoint(spi_data_layout(width))
-        self.eop = Signal(reset=1)
-        self.source = Endpoint(spi_data_layout(width))
-
-        ###
-
-        self.comb += [
-            If(self.eop0,
-                self.eop.eq(self.eop0),
-                self.sink0.connect(self.source),
-            ).Else(
-                self.eop.eq(self.eop1),
-                self.sink1.connect(self.source),
-            )
-        ]
-
-
 class Comm(Module):
     """USB Protocol handler.
 
@@ -308,7 +309,6 @@ class Comm(Module):
 
         self.comb += [
             proto.board.eq(~ctrl_pads.board),  # pcb inverted
-            ctrl_pads.reset.eq(ResetSignal()),
             rg.trigger.eq(proto.config.reset),
             ctrl_pads.aux.eq(Mux(proto.config.aux_miso,
                                  spi.spi.miso, aux_dac)),
