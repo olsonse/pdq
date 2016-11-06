@@ -30,11 +30,18 @@ def main():
     buf = BytesIO()
     cli.main(buf)
 
-    tb = Pdq2Sim(buf.getvalue())
-    run_simulation(tb, vcd_name="pdq2.vcd", ncycles=700)
+    def run(n):
+        for i in range(n):
+            yield
+            print("\r{}".format(i), end="")
+
+    tb = Pdq2Sim()
+    run_simulation(tb, [tb.write(buf.getvalue()), tb.record(), run(400)],
+                   vcd_name="pdq2.vcd")
     out = np.array(tb.outputs, np.uint16).view(np.int16)
     plt.plot(out)
     plt.show()
+
 
 if __name__ == "__main__":
     main()

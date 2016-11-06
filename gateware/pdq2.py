@@ -21,7 +21,7 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from .dac import Dac
 from .comm import Comm
-from .ft245r import Ft245r_rx #, SimFt245r_rx, SimReader
+from .ft245r import Ft245r_rx  # , SimFt245r_rx
 
 
 class Pdq2Base(Module):
@@ -51,7 +51,7 @@ class Pdq2Base(Module):
 
 class Pdq2Sim(Module):
     ctrl_layout = [
-        ("adr", 4),
+        ("board", 4),
         ("aux", 1),
         ("frame", 3),
         ("trigger", 1),
@@ -60,28 +60,34 @@ class Pdq2Sim(Module):
         ("g2_out", 1),
     ]
 
-    def __init__(self, mem, skip_ft245r=True):
+    def __init__(self, skip_ft245r=True):
         self.ctrl_pads = Record(self.ctrl_layout)
-        self.ctrl_pads.adr.reset = 0b1111
+        self.ctrl_pads.board.reset = 0b1111  # board-inverted
+        self.ctrl_pads.frame.reset = 0b111  # pullup on cs_n
         self.ctrl_pads.trigger.reset = 1
-        self.ctrl_pads.frame.reset = 0b000
-        self.submodules.dut = ResetInserter()(Pdq2Base(self.ctrl_pads))
-        self.comb += self.dut.reset_sys.eq(self.dut.comm.ctrl.reset)
-        if skip_ft245r:
-            reader = SimReader(mem)
-        else:
-            reader = SimFt245r_rx(mem)
-        self.submodules.reader = ResetInserter()(reader)
-        self.comb += self.reader.reset_sys.eq(self.dut.comm.ctrl.reset)
-        self.comb += self.reader.source.connect(self.dut.comm.sink)
-        # override high-ack during reset draining the reader
-        self.comb += self.reader.source.ack.eq(self.dut.comm.sink.ack &
-                                               ~self.dut.comm.ctrl.reset)
+        self.submodules.dut = ResetInserter(["sys"])(Pdq2Base(self.ctrl_pads))
+        # self.comb += self.dut.reset_sys.eq(self.dut.comm.rg.reset)
         self.outputs = []
+        self.aux = []
+
+    def write(self, mem):
+        b = self.dut.comm.ftdi_bus
+        yield
+        for m in mem:
+            yield b.data.eq(m)
+            yield b.stb.eq(1)
+            yield
+            while not (yield b.ack):
+                yield
+            yield b.stb.eq(0)
 
     @passive
-    def do_simulation(self):
-        self.outputs.append([(yield dac.out.data) for dac in selfp.dut.dacs])
+    def record(self):
+        while True:
+            yield
+            self.outputs.append((yield from [(yield dac.out.data)
+                                             for dac in self.dut.dacs]))
+            self.aux.append((yield self.ctrl_pads.aux))
 
 
 class CRG(Module):
@@ -171,9 +177,10 @@ class Pdq2(Pdq2Base):
         self.submodules.reader = Ft245r_rx(comm_pads)
         self.comb += [
                 self.reader.source.connect(self.comm.ftdi_bus),
-                self.crg.rst.eq(self.comm.proto.config.reset),
+                self.crg.rst.eq(self.comm.rg.reset),
                 ctrl_pads.g2_out.eq(self.crg.dcm_locked),
-                self.crg.dcm_sel.eq(self.comm.proto.config.clk2x)
+                self.crg.dcm_sel.eq(self.comm.proto.config.clk2x),
+                ctrl_pads.reset.eq(ResetSignal()),
         ]
 
         sys_p, sys_n = ClockSignal("sys"), ClockSignal("sys_n")
