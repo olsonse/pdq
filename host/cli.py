@@ -44,6 +44,11 @@ def get_argparser():
     parser.add_argument("-o", "--order", default=3, type=int,
                         help="interpolation (0: const, 1: lin, 2: quad,"
                         " 3: cubic) [%(default)s]")
+    parser.add_argument("-a", "--aux-miso", default=False, action="store_true",
+                        help="route MISO to AUX/F5 TTL output [%(default)s]")
+    parser.add_argument("-k", "--aux-dac", default=0b111, type=int,
+                        help="DAC channel OR mask to AUX/F5 TTL output "
+                        "[%(default)#x]")
     parser.add_argument("-u", "--dump", help="dump to file [%(default)s]")
     parser.add_argument("-r", "--reset", default=False,
                         action="store_true", help="do reset before")
@@ -79,11 +84,13 @@ def main(dev=None):
     dev = Pdq2(args.serial, dev)
 
     if args.reset:
-        dev.write(b"\x00\x00")  # flush any escape
-        dev.cmd("RESET", True)
+        dev.write(b"")  # flush eop
+        dev.set_config(reset=True)
         time.sleep(.1)
 
-    dev.cmd("DCM", args.multiplier)
+    dev.set_checksum(0)
+    dev.checksum = 0
+
     freq = 50e6
     if args.multiplier:
         freq *= 2
@@ -91,9 +98,9 @@ def main(dev=None):
     times = np.around(eval(args.times, globals(), {})*freq)
     voltages = eval(args.voltages, globals(), dict(t=times/freq))
 
-    dev.cmd("START", False)
-    dev.cmd("ARM", True)
-    dev.cmd("TRIGGER", True)
+    dev.set_config(reset=False, clk2x=args.multiplier, enable=False,
+                   trigger=False, aux_miso=args.aux_miso,
+                   aux_dac=args.aux_dac, board=0xf)
 
     dt = np.diff(times.astype(np.int))
     if args.order:
@@ -115,9 +122,10 @@ def main(dev=None):
     program[args.frame] = segment
     dev.program(program, [args.channel])
 
-    dev.cmd("TRIGGER", args.free)
-    dev.cmd("ARM", not args.disarm)
-    dev.cmd("START", True)
+    dev.set_frame(args.frame)
+    dev.set_config(reset=False, clk2x=args.multiplier, enable=not args.disarm,
+                   trigger=args.free, aux_miso=args.aux_miso,
+                   aux_dac=args.aux_dac, board=0xf)
 
 
 if __name__ == "__main__":

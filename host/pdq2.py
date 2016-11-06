@@ -359,12 +359,13 @@ class Pdq2:
             data (bytes): Data to write.
         """
         logger.debug("> %r", data)
-        written = self.dev.write(b"\x02" + data + b"\x03")
+        msg = b"\xa5\x02" + data.replace(b"\xa5", b"\xa5\xa5") + b"\xa5\x03"
+        written = self.dev.write(msg)
         if isinstance(written, int):
-            assert written == len(data) + 2, (written, len(data))
+            assert written == len(msg), (written, len(msg))
         self.checksum = crc8(data, self.checksum)
 
-    def _cmd(self, we, is_mem, board, adr):
+    def _cmd(self, board, is_mem, adr, we):
         return (adr << 0) | (is_mem << 2) | (board << 3) | (we << 7)
 
     def write_reg(self, board, adr, data):
@@ -376,7 +377,7 @@ class Pdq2:
             data (int): Data to write (1 byte)
         """
         self.write(struct.pack(
-            "<BB", self._cmd(True, False, board, adr), data))
+            "<BB", self._cmd(board, False, adr, True), data))
 
     def set_config(self, reset=False, clk2x=False, enable=True,
                    trigger=False, aux_miso=False, aux_dac=0b111, board=0xf):
@@ -417,7 +418,7 @@ class Pdq2:
             start_addr (int): Start address to write data to.
         """
         board, dac = divmod(channel, self.num_dacs)
-        self.write(struct.pack("<BH", self._cmd(True, True, board, dac),
+        self.write(struct.pack("<BH", self._cmd(board, True, dac, True),
                                start_addr) + data)
 
     def program_segments(self, segments, data):
