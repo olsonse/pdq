@@ -52,3 +52,9 @@ Code Documentation
 
 .. automodule:: gateware.ft245r
     :members:
+
+:mod:`gateware.spi` module
+-----------------------------
+
+.. automodule:: gateware.spi
+    :members:
