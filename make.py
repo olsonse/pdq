@@ -17,17 +17,27 @@
 # along with pdq2.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+import argparse
 
 from gateware.platform import Platform
 from gateware.pdq2 import Pdq2
 
 
+
 def _main():
-    for mems in (8, 6, 6), (10, 10), (20,):
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-x", "--xilinx", default=None)
+    parser.add_argument("-c", "--config", default=[], type=int, action="append")
+    args = parser.parse_args()
+
+    if not args.config:
+        args.config = [3, 2, 1]
+    for config in args.config:
+        mems = [None, (20,), (10, 10), (8, 6, 6)][config]
         platform = Platform()
         pdq = Pdq2(platform, mem_depths=[i << 10 for i in mems])
-        platform.build(pdq, build_name="pdq2_{}ch".format(len(mems)),
-                       toolchain_path=os.environ.get("XILINX_PATH"))
+        platform.build(pdq, build_name="pdq2_{}ch".format(config),
+                       toolchain_path=args.xilinx)
 
 
 if __name__ == "__main__":
