@@ -59,38 +59,38 @@ class TB(Module):
         # test write
         yield from self.seq([
             (1 << 7) | (0b0101 << 3) | (1 << 2) | (0 << 0),
-            0x10, 0x00, 0x00, 0x01])
+            0x00, 0x10, 0x01, 0x00])
         r = (yield self.mems[0][0])
         assert r == 0x0001, hex(r)
         yield from self.seq([
             (1 << 7) | (0b0101 << 3) | (1 << 2) | (0 << 0),
-            0x20, 0x03, 0x00, 0x02])
+            0x03, 0x20, 0x02, 0x00])
         r = (yield self.mems[0][3])
         assert r == 0x0002, hex(r)
         yield from self.seq([
             (1 << 7) | (0b0101 << 3) | (1 << 2) | (2 << 0),
-            0x30, 0x01, 0x10, 0x0f])
+            0x01, 0x30, 0x0f, 0x10])
         r = (yield self.mems[2][1])
         assert r == 0x100f, hex(r)
 
         # test read
         r = (yield from self.seq([
             (0 << 7) | (0b0101 << 3) | (1 << 2) | (2 << 0),
-            0x30, 0x01, 0x00, 0x00]))
-        assert r == [0x10, 0x0f], r
+            0x01, 0x30, 0x00, 0x00]))
+        assert r == [0x0f, 0x10], r
 
         # test multi write
         yield from self.seq([
             (1 << 7) | (0b0101 << 3) | (1 << 2) | (0 << 0),
-            0x00, 0x01, 0x10, 0x01, 0x20, 0x02, 0x30, 0x03])
+            0x01, 0x00, 0x01, 0x10, 0x02, 0x20, 0x03, 0x30])
         r = yield from [(yield self.mems[0][i]) for i in range(1, 4)]
         assert r == [0x1001, 0x2002, 0x3003], r
 
         # test multi read
         r = yield from self.seq([
             (0 << 7) | (0b0101 << 3) | (1 << 2) | (0 << 0),
-            0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
-        assert r == [0x10, 0x01, 0x20, 0x02, 0x30, 0x03], r
+            0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+        assert r == [0x01, 0x10, 0x02, 0x20, 0x03, 0x30], r
 
 
     def seq(self, seq):
