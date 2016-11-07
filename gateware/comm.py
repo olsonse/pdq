@@ -218,10 +218,12 @@ class Protocol(Module):
         fsm.act("IGNORE")
         fsm.act("REG_WRITE",
             reg_we.eq(self.sink.stb),
+            NextState("IGNORE"),
         )
         fsm.act("REG_READ",
             self.sink.ack.eq(1),  # drive miso
             self.sink.miso.eq(reg_map[cmd.adr]),
+            NextState("IGNORE"),
         )
         fsm.act("MEM_ADRL",
             NextValue(mem_adr[:8], self.sink.mosi),
@@ -289,6 +291,7 @@ class Comm(Module):
         arb = Arbiter()
         proto = Protocol([dac.parser.mem for dac in dacs])
         self.submodules += proto, rg, spi, f2s, arb
+        self.spi = spi
         self.proto = proto
         self.rg = rg
         self.ftdi_bus = f2s.sink

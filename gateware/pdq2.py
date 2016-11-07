@@ -60,12 +60,13 @@ class Pdq2Sim(Module):
         ("g2_out", 1),
     ]
 
-    def __init__(self, skip_ft245r=True):
+    def __init__(self, **kwargs):
         self.ctrl_pads = Record(self.ctrl_layout)
         self.ctrl_pads.board.reset = 0b1111  # board-inverted
         self.ctrl_pads.frame.reset = 0b111  # pullup on cs_n
         self.ctrl_pads.trigger.reset = 1
-        self.submodules.dut = ResetInserter(["sys"])(Pdq2Base(self.ctrl_pads))
+        self.submodules.dut = ResetInserter(["sys"])(
+            Pdq2Base(self.ctrl_pads, **kwargs))
         # self.comb += self.dut.reset_sys.eq(self.dut.comm.rg.reset)
         self.outputs = []
         self.aux = []
