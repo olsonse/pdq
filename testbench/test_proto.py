@@ -94,22 +94,22 @@ class TB(Module):
 
 
     def seq(self, seq):
-        yield self.proto.eop.eq(0)
+        yield self.proto.sink.eop.eq(0)
         yield
         r = []
         for d in seq:
             yield
-            yield self.proto.sink.mosi.eq(d)
+            yield self.proto.sink.data.eq(d)
             yield self.proto.sink.stb.eq(1)
             yield
             print("mosi {:#02x}".format(d))
-            if (yield self.proto.sink.ack):
-                d = (yield self.proto.sink.miso)
+            if (yield self.proto.source.stb):
+                d = (yield self.proto.source.data)
                 r.append(d)
                 print("miso {:#02x}".format(d))
             yield self.proto.sink.stb.eq(0)
             yield
-        yield self.proto.eop.eq(1)
+        yield self.proto.sink.eop.eq(1)
         yield
         return r
 

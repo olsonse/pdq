@@ -57,12 +57,12 @@ class TB(Module):
             read.append(o)
 
     def xfer_slave(self, i):
-        yield self.s.data.miso.eq(i)
-        yield self.s.data.ack.eq(1)
-        while not (yield self.s.data.stb):
+        yield self.s.miso.data.eq(i)
+        yield self.s.miso.stb.eq(1)
+        while not (yield self.s.mosi.stb):
             yield
-        r = (yield self.s.data.mosi), (yield self.s.data.eop)
-        yield self.s.data.ack.eq(0)
+        r = (yield self.s.mosi.data), (yield self.s.mosi.eop)
+        yield self.s.miso.stb.eq(0)
         yield
         return r
 

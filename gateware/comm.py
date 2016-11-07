@@ -22,7 +22,7 @@ from misoc.cores.liteeth_mini.mac.crc import LiteEthMACCRCEngine
 
 from .ft245r import bus_layout
 from .escape import Unescaper
-from .spi import spi_data_layout, SPISlave
+from .spi import SPISlave
 
 
 mem_layout = [("data", 16)]
@@ -68,8 +68,8 @@ class FTDI2SPI(Module):
     """
     def __init__(self):
         self.sink = Endpoint(bus_layout)
-        self.source = Endpoint(spi_data_layout(width=8))
-        self.eop = Signal(reset=1)
+        self.source = Endpoint(bus_layout)
+        self.source.eop.reset = 1
 
         ###
 
@@ -78,37 +78,32 @@ class FTDI2SPI(Module):
         self.sync += [
             If(unesc.source1.stb,
                 Case(unesc.source1.data, {
-                    0x02: self.eop.eq(0),
-                    0x03: self.eop.eq(1),
+                    0x02: self.source.eop.eq(0),
+                    0x03: self.source.eop.eq(1),
                 }),
             )
         ]
         self.comb += [
             self.sink.connect(unesc.sink),
-            self.source.mosi.eq(unesc.source0.data),
+            self.source.data.eq(unesc.source0.data),
             self.source.stb.eq(unesc.source0.stb),
-            unesc.source0.ack.eq(1),
+            unesc.source0.ack.eq(self.source.ack),
             unesc.source1.ack.eq(1),
         ]
 
 
 class Arbiter(Module):
     def __init__(self, width=8):
-        self.eop0 = Signal()
-        self.eop1 = Signal()
-        self.sink0 = Endpoint(spi_data_layout(width))
-        self.sink1 = Endpoint(spi_data_layout(width))
-        self.eop = Signal(reset=1)
-        self.source = Endpoint(spi_data_layout(width))
+        self.sink0 = Endpoint(bus_layout)
+        self.sink1 = Endpoint(bus_layout)
+        self.source = Endpoint(bus_layout)
 
         ###
 
         self.comb += [
-            If(~self.eop0,  # has priority
-                self.eop.eq(self.eop0),
+            If(~self.sink0.eop,  # has priority
                 self.sink0.connect(self.source),
             ).Else(
-                self.eop.eq(self.eop1),
                 self.sink1.connect(self.source),
             )
         ]
@@ -126,8 +121,8 @@ class Protocol(Module):
         sink (Endpoint[mem_layout]): 16 bit data sink.
     """
     def __init__(self, mems):
-        self.sink = Endpoint(spi_data_layout(width=8))
-        self.eop = Signal()
+        self.sink = Endpoint(bus_layout)
+        self.source = Endpoint(bus_layout)
         self.board = Signal(4)
 
         # mapped registers
@@ -149,11 +144,11 @@ class Protocol(Module):
         self.submodules += crc
 
         self.comb += [
-            crc.data.eq(self.sink.mosi[::-1]),
+            crc.data.eq(self.sink.data[::-1]),
             crc.last.eq(self.checksum),
         ]
         self.sync += [
-            If(self.sink.stb & ~self.eop,
+            If(self.sink.stb & ~self.sink.eop,
                 self.checksum.eq(crc.next),
             ),
         ]
@@ -165,14 +160,14 @@ class Protocol(Module):
             ("we", 1),      # write/read_n
         ]
         cmd_cur = Record(cmd_layout)
-        self.comb += cmd_cur.raw_bits().eq(self.sink.mosi)
+        self.comb += cmd_cur.raw_bits().eq(self.sink.data)
         cmd = Record(cmd_layout)
 
         reg_map = Array([self.config.raw_bits(), self.checksum, self.frame])
         reg_we = Signal()
         self.sync += [
             If(reg_we,
-                reg_map[cmd.adr].eq(self.sink.mosi),
+                reg_map[cmd.adr].eq(self.sink.data),
             )
         ]
 
@@ -184,9 +179,10 @@ class Protocol(Module):
         mem_dat_wl = Signal(8)
         mem_dat_r = Signal(16)
         self.comb += [
+            self.sink.ack.eq(1),
             [[
                 mem.adr.eq(mem_adr),
-                mem.dat_w.eq(Cat(mem_dat_wl, self.sink.mosi))
+                mem.dat_w.eq(Cat(mem_dat_wl, self.sink.data))
             ] for mem in mems],
             Array([mem.we for mem in mems])[cmd.adr].eq(mem_we),
             mem_dat_r.eq(Array([mem.dat_r for mem in mems])[cmd.adr]),
@@ -195,7 +191,7 @@ class Protocol(Module):
         fsm = ResetInserter()(CEInserter()(FSM(reset_state="CMD")))
         self.submodules += fsm
         self.comb += [
-            fsm.reset.eq(self.eop),
+            fsm.reset.eq(self.sink.eop),
             fsm.ce.eq(self.sink.stb),
         ]
 
@@ -221,16 +217,16 @@ class Protocol(Module):
             NextState("IGNORE"),
         )
         fsm.act("REG_READ",
-            self.sink.ack.eq(1),  # drive miso
-            self.sink.miso.eq(reg_map[cmd.adr]),
+            self.source.stb.eq(1),
+            self.source.data.eq(reg_map[cmd.adr]),
             NextState("IGNORE"),
         )
         fsm.act("MEM_ADRL",
-            NextValue(mem_adr[:8], self.sink.mosi),
+            NextValue(mem_adr[:8], self.sink.data),
             NextState("MEM_ADRH"),
         )
         fsm.act("MEM_ADRH",
-            NextValue(mem_adr[8:], self.sink.mosi),
+            NextValue(mem_adr[8:], self.sink.data),
             If(cmd.we,
                 NextState("MEM_WRITEL"),
             ).Else(
@@ -238,7 +234,7 @@ class Protocol(Module):
             ),
         )
         fsm.act("MEM_WRITEL",
-            NextValue(mem_dat_wl, self.sink.mosi),
+            NextValue(mem_dat_wl, self.sink.data),
             NextState("MEM_WRITEH"),
         )
         fsm.act("MEM_WRITEH",
@@ -247,13 +243,13 @@ class Protocol(Module):
             NextState("MEM_WRITEL"),
         )
         fsm.act("MEM_READL",
-            self.sink.ack.eq(1),  # drive miso
-            self.sink.miso.eq(mem_dat_r[:8]),
+            self.source.stb.eq(1),
+            self.source.data.eq(mem_dat_r[:8]),
             NextState("MEM_READH"),
         )
         fsm.act("MEM_READH",
-            self.sink.ack.eq(1),  # drive miso
-            self.sink.miso.eq(mem_dat_r[8:]),
+            self.source.stb.eq(1),
+            self.source.data.eq(mem_dat_r[8:]),
             NextValue(mem_adr, mem_adr + 1),
             NextState("MEM_READL"),
         )
@@ -300,13 +296,11 @@ class Comm(Module):
             spi.spi.cs_n.eq(ctrl_pads.frame[0]),
             spi.spi.clk.eq(ctrl_pads.frame[1]),
             spi.spi.mosi.eq(ctrl_pads.frame[2]),
-            spi.data.connect(arb.sink0),
-            arb.eop0.eq(spi.cs_n),
+            spi.mosi.connect(arb.sink0),
+            proto.source.connect(spi.miso),
             spi.reset.eq(spi.cs_n),
             f2s.source.connect(arb.sink1),
-            arb.eop1.eq(f2s.eop),
             arb.source.connect(proto.sink),
-            proto.eop.eq(arb.eop),
         ]
 
         trigger = Signal()

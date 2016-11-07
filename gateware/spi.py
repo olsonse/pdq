@@ -118,13 +118,6 @@ spi_layout = [
 ]
 
 
-def spi_data_layout(width):
-    return [
-        ("mosi", width, DIR_M_TO_S),
-        ("miso", width, DIR_S_TO_M),
-    ]
-
-
 @ResetInserter()
 class SPISlave(Module):
     """SPI slave.
@@ -154,7 +147,8 @@ class SPISlave(Module):
     """
     def __init__(self, width=8):
         self.spi = spi = Record(spi_layout)
-        self.data = data = Endpoint(spi_data_layout(width))
+        self.mosi = mosi = Endpoint([("data", width)])
+        self.miso = miso = Endpoint([("data", width)])
         self.cs_n = Signal()
 
         ###
@@ -175,14 +169,16 @@ class SPISlave(Module):
             If(edge & ~inp.o,  # falling
                 spi.miso.eq(sr.o),
             ),
-            If(data.stb,
-                sr.data.eq(data.miso),
-                spi.oe_s.eq(data.ack),
+            If(mosi.stb,
+                sr.data.eq(miso.data),
+                spi.oe_s.eq(miso.stb),
             ),
         ]
         self.comb += [
             edge.eq(clk0 != inp.o),
             sr.ce.eq(edge & inp.o),  # rising
-            data.stb.eq(sr.stb & sr.ce),
-            data.mosi.eq(sr.next),
+            mosi.stb.eq(sr.stb & sr.ce),
+            miso.ack.eq(mosi.stb),
+            mosi.data.eq(sr.next),
+            mosi.eop.eq(self.cs_n),
         ]
