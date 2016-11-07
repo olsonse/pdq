@@ -6,6 +6,7 @@ from misoc.cores.spi import SPIMachine
 
 from gateware.pdq2 import Pdq2Sim
 from host import cli
+from host.pdq2 import crc8
 
 
 logger = logging.getLogger(__name__)
@@ -81,9 +82,10 @@ class TB(Module):
         adr = 0
         data = self._config(reset=False, clk2x=False, enable=True,
                             trigger=False, aux_miso=True, aux_dac=0b111)
-        board = 0xf
-        yield from self.write_reg(adr, data, board)
-        r = (yield from self.read_reg(adr, board))
+        yield from self.write_reg(adr, data)
+        r = (yield self.p.dut.comm.proto.config.raw_bits())
+        assert r == data, (r, data)
+        r = (yield from self.read_reg(adr))
         assert r == data, (r, data)
 
 
