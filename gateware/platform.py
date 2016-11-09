@@ -107,6 +107,7 @@ class Platform(XilinxPlatform):
     def __init__(self):
         XilinxPlatform.__init__(self, "xc3s500e-4pq208", _io)
         self.toolchain.xst_opt = """-ifmt MIXED
+-bram_utilization_ratio -1
 -opt_level 2
 -opt_mode SPEED
 -register_balancing yes"""
