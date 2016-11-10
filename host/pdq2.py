@@ -59,7 +59,7 @@ class CRC:
     >>> r = CRC(0x1814141AB)(b"123456789")  # crc-32q
     >>> assert r == 0x3010BF7F, hex(r)
     """
-    def __init__(self, poly=0x107, data_width=8):
+    def __init__(self, poly, data_width=8):
         self.poly = poly
         self.crc_width = poly.bit_length() - 1
         self.data_width = data_width
@@ -213,7 +213,7 @@ class Channel:
         max_data (int): Number of 16 bit data words per channel.
         segments (list[Segment]): Segments added to this channel.
     """
-    def __init__(self, max_data=6 << 10, num_frames=8):
+    def __init__(self, max_data, num_frames):
         self.max_data = max_data
         self.num_frames = num_frames
         self.segments = []
@@ -318,7 +318,7 @@ class Pdq2:
     _mem_sizes = [None, (20,), (10, 10), (8, 6, 6)]  # 10kx16 units
 
     def __init__(self, url=None, dev=None, num_boards=3, num_dacs=3,
-                 num_frames=8):
+                 num_frames=32):
         if dev is None:
             dev = serial.serial_for_url(url)
         self.dev = dev
