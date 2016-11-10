@@ -148,7 +148,7 @@ class Protocol(Module):
             crc.last.eq(self.checksum),
         ]
         self.sync += [
-            If(self.sink.stb & ~self.sink.eop,
+            If(self.sink.stb & ~self.sink.eop & ~self.source.stb,
                 self.checksum.eq(crc.next),
             ),
         ]
@@ -171,8 +171,7 @@ class Protocol(Module):
             )
         ]
 
-        mems = [mem.get_port(write_capable=True)
-                for mem in mems]
+        mems = [mem.get_port(write_capable=True) for mem in mems]
         self.specials += mems
         mem_adr = Signal(16)
         mem_we = Signal()
