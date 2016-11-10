@@ -16,18 +16,17 @@
 # You should have received a copy of the GNU General Public License
 # along with pdq2.  If not, see <http://www.gnu.org/licenses/>.
 
-import os
 import argparse
 
 from gateware.platform import Platform
 from gateware.pdq2 import Pdq2
 
 
-
 def _main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-x", "--xilinx", default=None)
-    parser.add_argument("-c", "--config", default=[], type=int, action="append")
+    parser.add_argument("-c", "--config", default=[],
+                        type=int, action="append")
     args = parser.parse_args()
 
     if not args.config:
