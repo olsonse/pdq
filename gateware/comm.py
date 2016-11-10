@@ -171,19 +171,22 @@ class Protocol(Module):
             )
         ]
 
-        mems = [mem.get_port(write_capable=True) for mem in mems]
+        mems = [mem.get_port(write_capable=True, we_granularity=8)
+                for mem in mems]
         self.specials += mems
         mem_adr = Signal(16)
         mem_we = Signal()
-        mem_dat_wl = Signal(8)
         mem_dat_r = Signal(16)
         self.comb += [
             self.sink.ack.eq(1),
             [[
-                mem.adr.eq(mem_adr),
-                mem.dat_w.eq(Cat(mem_dat_wl, self.sink.data))
+                mem.adr.eq(mem_adr[1:]),
+                mem.dat_w.eq(Replicate(self.sink.data, 2)),
             ] for mem in mems],
-            Array([mem.we for mem in mems])[cmd.adr].eq(mem_we),
+            If(mem_we,
+                Array([mem.we for mem in mems])[cmd.adr].eq(
+                    Mux(mem_adr[0], 0b10, 0b01)),
+            ),
             mem_dat_r.eq(Array([mem.dat_r for mem in mems])[cmd.adr]),
         ]
 
@@ -195,7 +198,6 @@ class Protocol(Module):
         ]
 
         fsm.act("CMD",
-            NextValue(cmd.raw_bits(), cmd_cur.raw_bits()),
             If((cmd_cur.board == self.board) | (cmd_cur.board == 0xf),
                 If(cmd_cur.is_mem,
                     NextState("MEM_ADRL"),
@@ -210,48 +212,48 @@ class Protocol(Module):
                 NextState("IGNORE"),
             ),
         )
-        fsm.act("IGNORE")
+        fsm.act("IGNORE",
+            NextState("IGNORE"))
         fsm.act("REG_WRITE",
             reg_we.eq(self.sink.stb),
             NextState("IGNORE"),
         )
         fsm.act("REG_READ",
-            self.source.stb.eq(1),
+            self.source.stb.eq(self.sink.stb),
             self.source.data.eq(reg_map[cmd.adr]),
             NextState("IGNORE"),
         )
         fsm.act("MEM_ADRL",
-            NextValue(mem_adr[:8], self.sink.data),
             NextState("MEM_ADRH"),
         )
         fsm.act("MEM_ADRH",
-            NextValue(mem_adr[8:], self.sink.data),
-            If(cmd.we,
-                NextState("MEM_WRITEL"),
-            ).Else(
-                NextState("MEM_READL"),
+            NextState("MEM_DO"),
+        )
+        fsm.act("MEM_DO",
+            If(self.sink.stb,
+                If(cmd.we,
+                    mem_we.eq(1),
+                ).Else(
+                    self.source.stb.eq(1),
+                ),
             ),
+            self.source.data.eq(Mux(mem_adr[0],
+                                    mem_dat_r[8:], mem_dat_r[:8])),
         )
-        fsm.act("MEM_WRITEL",
-            NextValue(mem_dat_wl, self.sink.data),
-            NextState("MEM_WRITEH"),
-        )
-        fsm.act("MEM_WRITEH",
-            mem_we.eq(self.sink.stb),
-            NextValue(mem_adr, mem_adr + 1),
-            NextState("MEM_WRITEL"),
-        )
-        fsm.act("MEM_READL",
-            self.source.stb.eq(1),
-            self.source.data.eq(mem_dat_r[:8]),
-            NextState("MEM_READH"),
-        )
-        fsm.act("MEM_READH",
-            self.source.stb.eq(1),
-            self.source.data.eq(mem_dat_r[8:]),
-            NextValue(mem_adr, mem_adr + 1),
-            NextState("MEM_READL"),
-        )
+        self.sync += [
+            If(fsm.before_leaving("CMD"),
+                cmd.raw_bits().eq(self.sink.data),
+            ),
+            If(fsm.before_leaving("MEM_ADRL"),
+                mem_adr[:8].eq(self.sink.data),
+            ),
+            If(fsm.before_leaving("MEM_ADRH"),
+                mem_adr[8:].eq(self.sink.data),
+            ),
+            If(fsm.ongoing("MEM_DO") & self.sink.stb,
+                mem_adr.eq(mem_adr + 1),
+            ),
+        ]
 
 
 class Comm(Module):
