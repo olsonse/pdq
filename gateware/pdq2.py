@@ -157,6 +157,7 @@ class CRG(Module):
 
 
 @SplitMemory()
+@FullMemoryWE()
 class Pdq2(Pdq2Base):
     """PDQ2 Top module.
 
