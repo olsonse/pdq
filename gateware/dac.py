@@ -286,7 +286,7 @@ class Dds(Module):
         ###
 
         self.submodules.cordic = Cordic(width=16, eval_mode="pipelined",
-                guard=0)
+                guard=None)
 
         za = Signal(32)
         z = [Signal(32) for i in range(3)] # phase, dphase, ddphase
