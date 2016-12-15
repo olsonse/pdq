@@ -32,7 +32,7 @@ Migen and MiSoC can be installed using ``pip``: ::
   $ pip install -e git://github.com/m-labs/migen.git#egg=migen
   $ pip install -e git://github.com/m-labs/misoc.git#egg=misoc
 
-M-Labs also privides conda packages for Migen and MiSoC under the ``main`` and ``dev`` labels.
+M-Labs also provides conda packages for Migen and MiSoC under the ``main`` and ``dev`` labels.
 Then to build the gateware::
 
   $ python make.py
