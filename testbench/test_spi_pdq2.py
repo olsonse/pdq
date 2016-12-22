@@ -1,4 +1,5 @@
 import logging
+from itertools import count
 from io import BytesIO
 
 from migen import *
@@ -32,10 +33,10 @@ class TB(Module):
 
     @passive
     def watch_oe(self):
-        while True:
+        for i in count():
             if (yield self.m.oe) and \
                     (yield self.p.dut.comm.spi.spi.oe_s):
-                raise ValueError("doubly driven")
+                logger.error("miso/mosi doubly driven %d", i)
             yield
 
     def run_setup(self):
@@ -48,36 +49,59 @@ class TB(Module):
     def _cmd(self, board, is_mem, adr, we):
         return (adr << 0) | (is_mem << 2) | (board << 3) | (we << 7)
 
-    def write_reg(self, adr, data, board=0xf):
-        yield self.m.bits.n_write.eq(16)
-        yield self.m.bits.n_read.eq(0)
-        cmd = self._cmd(board, False, adr, True)
-        yield self.m.reg.data.eq((cmd << 24) | (data << 16))
+    def xfer(self, wdata, wlen=8, rlen=0):
+        yield self.m.bits.n_write.eq(wlen)
+        yield self.m.bits.n_read.eq(rlen)
+        yield self.m.reg.data.eq(wdata)
         yield self.m.start.eq(1)
         yield
         yield self.m.start.eq(0)
         while not (yield self.m.done):
             yield
+        return (yield self.m.reg.data)
+
+    def write_reg(self, adr, data, board=0xf):
+        cmd = self._cmd(board, False, adr, True)
+        yield from self.xfer((cmd << 24) | (data << 16), 16)
         self.crc([cmd, data])
-        logger.info("[%s] <- %s", adr, data)
-        for i in range(3):
+        logger.info("reg[%s] <- %s", adr, data)
+        for i in range(6):
             yield
 
     def read_reg(self, adr, board=0xf):
-        yield self.m.bits.n_write.eq(16)
-        yield self.m.bits.n_read.eq(8)
         cmd = self._cmd(board, False, adr, False)
-        yield self.m.reg.data.eq(cmd << 24)
-        yield self.m.start.eq(1)
-        yield
-        yield self.m.start.eq(0)
-        while not (yield self.m.done):
-            yield
+        data = (yield from self.xfer((cmd << 24), 16, 8)) & 0xff
         self.checksum_read = self.crc([cmd])
         self.crc([0])
-        data = (yield self.m.reg.data) & 0xff
-        logger.info("[%s] -> %s", adr, data)
-        for i in range(3):
+        logger.info("reg[%s] -> %s", adr, data)
+        for i in range(10):
+            yield
+        return data
+
+    def write_mem(self, mem, adr, data, board=0xf):
+        cmd = self._cmd(board, True, mem, True)
+        yield from self.xfer((cmd << 24) | (adr << 8), 24)
+        self.crc([cmd, adr])
+        logger.info("mem[%s][%s] <-", mem, adr)
+        for i in data:
+            yield
+            yield from self.xfer(i << 24, 8, 0)
+            logger.info("%s", i)
+        self.crc(list(data))
+        for i in range(6):
+            yield
+
+    def read_mem(self, mem, adr, len, board=0xf):
+        cmd = self._cmd(board, True, mem, False)
+        yield from self.xfer((cmd << 24) | (adr << 8), 24)
+        self.crc([0])
+        logger.info("mem[%s][%s] ->", mem, adr)
+        data = []
+        for i in range(len):
+            yield
+            data.append((yield from self.xfer(0, 0, 8)))
+            logger.info("%s", data[-1])
+        for i in range(10):
             yield
         return data
 
@@ -89,34 +113,47 @@ class TB(Module):
     def test(self):
         for i in range(20):
             yield
-        adr = 0
-        data = self._config(aux_miso=True)
-        yield from self.write_reg(adr, data)
-        r = (yield self.p.dut.comm.proto.config.raw_bits())
-        assert r == data, (r, data)
-        r = (yield from self.read_reg(adr))
-        assert r == data, (r, data)
 
-        adr = 1
-        data = 0xa5
-        yield from self.write_reg(adr, data)
-        r = (yield self.p.dut.comm.proto.checksum)
-        assert r == data, (r, data)
-        self.checksum = data
-        r = (yield from self.read_reg(adr))
-        assert r == self.checksum_read, (r, self.checksum_read)
+        if True:
+            adr = 0
+            data = self._config(aux_miso=True)
+            yield from self.write_reg(adr, data)
+            r = (yield self.p.dut.comm.proto.config.raw_bits())
+            assert r == data, (r, data)
+            r = (yield from self.read_reg(adr))
+            assert r == data, (r, data)
 
+            adr = 1
+            data = 0xa5
+            yield from self.write_reg(adr, data)
+            r = (yield self.p.dut.comm.proto.checksum)
+            assert r == data, (r, data)
+            self.checksum = data
+            r = (yield from self.read_reg(adr))
+            assert r == self.checksum_read, (r, self.checksum_read)
+
+            adr = 2
+            data = 0x1a
+            yield from self.write_reg(adr, data)
+            r = (yield self.p.dut.comm.proto.frame)
+            assert r == data, (r, data)
+            r = (yield from self.read_reg(adr))
+            assert r == data, (r, data)
+
+            adr = 1
+            r = (yield from self.read_reg(adr))
+            assert r == self.checksum_read, (r, self.checksum_read)
+
+        mem = 1
         adr = 2
-        data = 0x1a
-        yield from self.write_reg(adr, data)
-        r = (yield self.p.dut.comm.proto.frame)
-        assert r == data, (r, data)
-        r = (yield from self.read_reg(adr))
-        assert r == data, (r, data)
+        data = (yield from self.read_mem(mem, adr, 3))
 
-        adr = 1
-        r = (yield from self.read_reg(adr))
-        assert r == self.checksum_read, (r, self.checksum_read)
+        mem = 1
+        adr = 2
+        data = [0x12, 0x93, 0x99]
+        yield from self.write_mem(mem, adr, data)
+        datar = (yield from self.read_mem(mem, adr, len(data)))
+        assert data == datar, (data, datar)
 
 
 if __name__ == "__main__":
