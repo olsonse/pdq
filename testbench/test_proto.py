@@ -57,21 +57,25 @@ class TB(Module):
         assert r == [0xa5], r
 
         # test write
+        print("mem write XXX")
         yield from self.seq([
             (1 << 7) | (0b0101 << 3) | (1 << 2) | (0 << 0),
             0x00, 0x10, 0x01, 0x00])
         r = (yield self.mems[0][0])
         assert r == 0x0001, hex(r)
+        print("mem write XXX")
         yield from self.seq([
             (1 << 7) | (0b0101 << 3) | (1 << 2) | (0 << 0),
             0x02, 0x20, 0x02, 0x00])
         r = (yield self.mems[0][1])
         assert r == 0x0002, hex(r)
+        print("mem write XXX")
         yield from self.seq([
             (1 << 7) | (0b0101 << 3) | (1 << 2) | (2 << 0),
             0x04, 0x30, 0x0f, 0x10])
         r = (yield self.mems[2][2])
         assert r == 0x100f, hex(r)
+        print("mem write done")
 
         # test read
         r = (yield from self.seq([
@@ -91,7 +95,6 @@ class TB(Module):
             (0 << 7) | (0b0101 << 3) | (1 << 2) | (0 << 0),
             0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
         assert r == [0x01, 0x10, 0x02, 0x20, 0x03, 0x30], r
-
 
     def seq(self, seq):
         yield self.proto.sink.eop.eq(0)

@@ -66,6 +66,16 @@ class TB(Module):
                 packet.append((b_mosi, b_miso))
                 bit = b_mosi = b_miso = 0
 
+    @passive
+    def log_cmds(self, cmds):
+        p = self.p.dut.comm.proto
+        while True:
+            yield
+            if (yield p.sink.stb) and (yield p.sink.ack):
+                logger.info("proto sink %#04x", (yield p.sink.data))
+            if (yield p.source.stb) and (yield p.source.ack):
+                logger.info("proto sink %#04x", (yield p.source.data))
+
     def run_setup(self):
         yield self.m.clk_phase.eq(0)
         yield self.m.reg.lsb.eq(0)
@@ -83,16 +93,16 @@ class TB(Module):
         yield self.m.start.eq(1)
         yield
         yield self.m.start.eq(0)
-        while not (yield self.m.done):
+        while not (yield self.m.bits.done):
             yield
         return (yield self.m.reg.data)
 
     def write_reg(self, adr, data, board=0xf):
         cmd = self._cmd(board, False, adr, True)
-        yield from self.xfer((cmd << 24) | (data << 16), 16)
+        yield from self.xfer((cmd << 24) | (data << 16), 16, 0)
         self.crc([cmd, data])
         logger.info("reg[%#04x] <- %#04x", adr, data)
-        for i in range(6):
+        for i in range(10):
             yield
 
     def read_reg(self, adr, board=0xf):
@@ -107,26 +117,27 @@ class TB(Module):
 
     def write_mem(self, mem, adr, data, board=0xf):
         cmd = self._cmd(board, True, mem, True)
-        yield from self.xfer((cmd << 24) | (adr << 8), 24)
+        yield from self.xfer((cmd << 24) | ((adr & 0xff) << 16) |
+                (adr & 0xff00), 24, 0)
         self.crc([cmd, adr])
         logger.info("mem[%#04x][%#04x]:", mem, adr)
         for i in data:
-            yield
             yield from self.xfer(i << 24, 8, 0)
             logger.info("  <- %#04x", i)
         self.crc(list(data))
-        for i in range(6):
+        for i in range(10):
             yield
 
     def read_mem(self, mem, adr, len, board=0xf):
         cmd = self._cmd(board, True, mem, False)
-        yield from self.xfer((cmd << 24) | (adr << 8), 24)
+        yield from self.xfer((cmd << 24) | ((adr & 0xff) << 16) |
+                (adr & 0xff00), 24, 0)
         self.crc([0])
         logger.info("mem[%#04x][%#04x]:", mem, adr)
+        yield from self.xfer(0, 0, 8)  # dummy
         data = []
         for i in range(len):
-            yield
-            data.append((yield from self.xfer(0, 0, 8)))
+            data.append((yield from self.xfer(0, 0, 8)) & 0xff)
             logger.info("  -> %#04x", data[-1])
         for i in range(10):
             yield
@@ -140,6 +151,8 @@ class TB(Module):
     def test(self):
         for i in range(20):
             yield
+
+        yield from self.write_reg(adr=0, data=self._config(aux_miso=True))
 
         if False:
             adr = 0
@@ -171,14 +184,18 @@ class TB(Module):
             r = (yield from self.read_reg(adr))
             assert r == self.checksum_read, (r, self.checksum_read)
 
-        mem = 1
-        adr = 2
-        data = (yield from self.read_mem(mem, adr, 3))
+            mem = 1
+            adr = 2
+            data = (yield from self.read_mem(mem, adr, 3))
 
         mem = 1
         adr = 2
         data = [0x12, 0x93, 0x99]
         yield from self.write_mem(mem, adr, data)
+        data_mem = (yield from [
+            (yield self.p.dut.dac1.parser.mem[i])
+            for i in range(0, 4)])
+        assert data_mem == [0, 0x9312, 0x0099, 0]
         datar = (yield from self.read_mem(mem, adr, len(data)))
         assert data == datar, (data, datar)
 
@@ -193,13 +210,15 @@ if __name__ == "__main__":
     tb = TB()
 
     xfers = []
+    cmds = []
     run_simulation(tb, [
-        tb.run_setup(),
         tb.watch_oe(),
         tb.log_xfers(xfers),
+        tb.log_cmds(cmds),
+        tb.run_setup(),
         tb.test(),
         # tb.p.write(buf.getvalue()),
     ], vcd_name="spi_pdq2.vcd")
     # out = np.array(tb.outputs, np.uint16).view(np.int16)
     # plt.plot(out)
-    print(xfers)
+    # print(xfers)
