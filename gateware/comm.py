@@ -202,11 +202,7 @@ class Protocol(Module):
                 If(cmd_cur.is_mem,
                     NextState("MEM_ADRL"),
                 ).Else(
-                    If(cmd_cur.we,
-                        NextState("REG_WRITE"),
-                    ).Else(
-                        NextState("REG_READ"),
-                    ),
+                    NextState("REG_DO"),
                 ),
             ).Else(
                 NextState("IGNORE"),
@@ -214,12 +210,9 @@ class Protocol(Module):
         )
         fsm.act("IGNORE",
             NextState("IGNORE"))
-        fsm.act("REG_WRITE",
-            reg_we.eq(self.sink.stb),
-            NextState("IGNORE"),
-        )
-        fsm.act("REG_READ",
-            self.source.stb.eq(self.sink.stb),
+        fsm.act("REG_DO",
+            self.source.stb.eq(self.sink.stb & ~cmd.we),
+            reg_we.eq(self.sink.stb & cmd.we),
             self.source.data.eq(reg_map[cmd.adr]),
             NextState("IGNORE"),
         )
@@ -230,13 +223,8 @@ class Protocol(Module):
             NextState("MEM_DO"),
         )
         fsm.act("MEM_DO",
-            If(self.sink.stb,
-                If(cmd.we,
-                    mem_we.eq(1),
-                ).Else(
-                    self.source.stb.eq(1),
-                ),
-            ),
+            mem_we.eq(self.sink.stb & cmd.we),
+            self.source.stb.eq(self.sink.stb & ~cmd.we),
             self.source.data.eq(Mux(mem_adr[0],
                                     mem_dat_r[8:], mem_dat_r[:8])),
         )
