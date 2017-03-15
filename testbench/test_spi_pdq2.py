@@ -1,6 +1,5 @@
 import logging
 from itertools import count
-from io import BytesIO
 
 from migen import run_simulation, passive, Module
 from misoc.cores.spi import SPIMachine
@@ -147,6 +146,14 @@ class TB(Module):
         return ((reset << 0) | (clk2x << 1) | (enable << 2) |
                 (trigger << 3) | (aux_miso << 4) | (aux_dac << 5))
 
+    def write(self, messages):
+        for i in range(20):
+            yield
+
+        yield from self.write_reg(adr=0, data=self._config(aux_miso=True))
+
+        # TODO
+
     def test(self):
         for i in range(20):
             yield
@@ -199,7 +206,6 @@ if __name__ == "__main__":
         level=logging.INFO,
         format="[%(name)s.%(funcName)s:%(lineno)d] %(message)s")
 
-    buf = BytesIO()
     tb = TB()
 
     xfers = []

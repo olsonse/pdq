@@ -293,20 +293,9 @@ class Channel:
         return self.table(entry) + data
 
 
-class Pdq2:
+class Pdq2Base:
     """
     PDQ stack.
-
-    Args:
-        url (str): Pyserial device URL. Can be ``hwgrep://`` style
-            (search for serial number, bus topology, USB VID:PID combination),
-            ``COM15`` for a Windows COM port number,
-            ``/dev/ttyUSB0`` for a Linux serial port.
-        dev (file-like): File handle to use as device. If passed, ``url`` is
-            ignored.
-        num_boards (int): Number of boards in this stack.
-        num_dacs (int): Number of DAC outputs per board.
-        num_frames (int): Number of frames supported.
 
     Attributes:
         checksum (int): Running checksum of data written.
@@ -320,11 +309,14 @@ class Pdq2:
 
     _mem_sizes = [None, (20,), (10, 10), (8, 6, 6)]  # 10kx16 units
 
-    def __init__(self, url=None, dev=None, num_boards=3, num_dacs=3,
-                 num_frames=32):
-        if dev is None:
-            dev = serial.serial_for_url(url)
-        self.dev = dev
+    def __init__(self, num_boards=3, num_dacs=3, num_frames=32):
+        """Initialize PDQ2 stack.
+
+        Args:
+            num_boards (int): Number of boards in this stack.
+            num_dacs (int): Number of DAC outputs per board.
+            num_frames (int): Number of frames supported.
+        """
         self.checksum = 0
         self.num_boards = num_boards
         self.num_dacs = num_dacs
@@ -350,32 +342,14 @@ class Pdq2:
     def set_freq(self, freq):
         self.freq = float(freq)
 
-    def close(self):
-        """Close the USB device handle."""
-        self.dev.close()
-        del self.dev
-
-    def write(self, data):
-        """Write data to the PDQ2 board over USB/parallel.
-
-        SOF/EOF control sequences are appended/prepended to
-        the (escaped) data. The running checksum is updated.
-
-        Args:
-            data (bytes): Data to write.
-        """
-        logger.debug("> %r", data)
-        msg = b"\xa5\x02" + data.replace(b"\xa5", b"\xa5\xa5") + b"\xa5\x03"
-        written = self.dev.write(msg)
-        if isinstance(written, int):
-            assert written == len(msg), (written, len(msg))
-        self.checksum = crc8(data, self.checksum)
-
     def _cmd(self, board, is_mem, adr, we):
         return (adr << 0) | (is_mem << 2) | (board << 3) | (we << 7)
 
+    def write(self, data):
+        raise NotImplementedError
+
     def write_reg(self, board, adr, data):
-        """Write to a configuration register
+        """Write to a configuration register.
 
         Args:
             board (int): Board to write to (0-0xe), 0xf for all boards.
@@ -500,10 +474,6 @@ class Pdq2:
         for channel, ch in zip(channels, chs):
             self.write_mem(channel, ch.serialize())
 
-    def flush(self):
-        """Flush pending data."""
-        self.dev.flush()
-
     def disable(self, **kwargs):
         """Disable the device."""
         self.set_config(enable=False, **kwargs)
@@ -518,3 +488,69 @@ class Pdq2:
         """Ping method returning True. Required for ARTIQ remote
         controller."""
         return True
+
+
+class Pdq2(Pdq2Base):
+    def __init__(self, url=None, dev=None, **kwargs):
+        """Initialize PDQ2 USB/Parallel device stack.
+
+        Args:
+            url (str): Pyserial device URL. Can be ``hwgrep://`` style
+                (search for serial number, bus topology, USB VID:PID
+                combination), ``COM15`` for a Windows COM port number,
+                ``/dev/ttyUSB0`` for a Linux serial port.
+            dev (file-like): File handle to use as device. If passed, ``url``
+                is ignored.
+            **kwargs: See :class:`Pdq2Base` .
+        """
+        if dev is None:
+            dev = serial.serial_for_url(url)
+        self.dev = dev
+        Pdq2Base.__init__(self, **kwargs)
+
+    def write(self, data):
+        """Write data to the PDQ2 board over USB/parallel.
+
+        SOF/EOF control sequences are appended/prepended to
+        the (escaped) data. The running checksum is updated.
+
+        Args:
+            data (bytes): Data to write.
+        """
+        logger.debug("> %r", data)
+        msg = b"\xa5\x02" + data.replace(b"\xa5", b"\xa5\xa5") + b"\xa5\x03"
+        written = self.dev.write(msg)
+        if isinstance(written, int):
+            assert written == len(msg), (written, len(msg))
+        self.checksum = crc8(data, self.checksum)
+
+    def close(self):
+        """Close the USB device handle."""
+        self.dev.close()
+        del self.dev
+
+    def flush(self):
+        """Flush pending data."""
+        self.dev.flush()
+
+
+class Pdq2SPI(Pdq2Base):
+    def __init__(self, dev=None, **kwargs):
+        """Initialize PDQ2 SPI device stack."""
+        self.dev = dev
+        Pdq2Base.__init__(self, **kwargs)
+
+     def write(self, data):
+        """Write data to the PDQ2 board over USB/parallel.
+
+        SOF/EOF control sequences are appended/prepended to
+        the (escaped) data. The running checksum is updated.
+
+        Args:
+            data (bytes): Data to write.
+        """
+        logger.debug("> %r", data)
+        written = self.dev.write(msg)
+        if isinstance(written, int):
+            assert written == len(msg), (written, len(msg))
+        self.checksum = crc8(data, self.checksum)

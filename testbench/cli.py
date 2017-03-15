@@ -36,7 +36,7 @@ def main():
             print("\r{}".format(i), end="")
 
     tb = Pdq2Sim()
-    run_simulation(tb, [tb.write(buf.getvalue()), tb.record(), run(400)],
+    run_simulation(tb, [tb.write(buf.getvalue()), tb.record(), run(500)],
                    vcd_name="pdq2.vcd")
     out = np.array(tb.outputs, np.uint16).view(np.int16)
     plt.plot(out)
