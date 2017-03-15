@@ -2,11 +2,10 @@ import logging
 from itertools import count
 from io import BytesIO
 
-from migen import *
+from migen import run_simulation, passive, Module
 from misoc.cores.spi import SPIMachine
 
 from gateware.pdq2 import Pdq2Sim
-from host import cli
 from host.pdq2 import crc8
 
 
@@ -118,7 +117,7 @@ class TB(Module):
     def write_mem(self, mem, adr, data, board=0xf):
         cmd = self._cmd(board, True, mem, True)
         yield from self.xfer((cmd << 24) | ((adr & 0xff) << 16) |
-                (adr & 0xff00), 24, 0)
+                             (adr & 0xff00), 24, 0)
         self.crc([cmd, adr])
         logger.info("mem[%#04x][%#04x]:", mem, adr)
         for i in data:
@@ -131,7 +130,7 @@ class TB(Module):
     def read_mem(self, mem, adr, len, board=0xf):
         cmd = self._cmd(board, True, mem, False)
         yield from self.xfer((cmd << 24) | ((adr & 0xff) << 16) |
-                (adr & 0xff00), 24, 0)
+                             (adr & 0xff00), 24, 0)
         self.crc([0])
         logger.info("mem[%#04x][%#04x]:", mem, adr)
         yield from self.xfer(0, 0, 8)  # dummy
@@ -154,39 +153,34 @@ class TB(Module):
 
         yield from self.write_reg(adr=0, data=self._config(aux_miso=True))
 
-        if False:
-            adr = 0
-            data = self._config(aux_miso=True)
-            yield from self.write_reg(adr, data)
-            r = (yield self.p.dut.comm.proto.config.raw_bits())
-            assert r == data, (r, data)
-            r = (yield from self.read_reg(adr))
-            assert r == data, (r, data)
+        adr = 0
+        data = self._config(aux_miso=True)
+        yield from self.write_reg(adr, data)
+        r = (yield self.p.dut.comm.proto.config.raw_bits())
+        assert r == data, (r, data)
+        r = (yield from self.read_reg(adr))
+        assert r == data, (r, data)
 
-            adr = 1
-            data = 0xa5
-            yield from self.write_reg(adr, data)
-            r = (yield self.p.dut.comm.proto.checksum)
-            assert r == data, (r, data)
-            self.checksum = data
-            r = (yield from self.read_reg(adr))
-            assert r == self.checksum_read, (r, self.checksum_read)
+        adr = 1
+        data = 0xa5
+        yield from self.write_reg(adr, data)
+        r = (yield self.p.dut.comm.proto.checksum)
+        assert r == data, (r, data)
+        self.checksum = data
+        r = (yield from self.read_reg(adr))
+        assert r == self.checksum_read, (r, self.checksum_read)
 
-            adr = 2
-            data = 0x1a
-            yield from self.write_reg(adr, data)
-            r = (yield self.p.dut.comm.proto.frame)
-            assert r == data, (r, data)
-            r = (yield from self.read_reg(adr))
-            assert r == data, (r, data)
+        adr = 2
+        data = 0x1a
+        yield from self.write_reg(adr, data)
+        r = (yield self.p.dut.comm.proto.frame)
+        assert r == data, (r, data)
+        r = (yield from self.read_reg(adr))
+        assert r == data, (r, data)
 
-            adr = 1
-            r = (yield from self.read_reg(adr))
-            assert r == self.checksum_read, (r, self.checksum_read)
-
-            mem = 1
-            adr = 2
-            data = (yield from self.read_mem(mem, adr, 3))
+        adr = 1
+        r = (yield from self.read_reg(adr))
+        assert r == self.checksum_read, (r, self.checksum_read)
 
         mem = 1
         adr = 2
@@ -195,7 +189,7 @@ class TB(Module):
         data_mem = (yield from [
             (yield self.p.dut.dac1.parser.mem[i])
             for i in range(0, 4)])
-        assert data_mem == [0, 0x9312, 0x0099, 0]
+        assert data_mem == [0, 0x9312, 0x0099, 0], data_mem
         datar = (yield from self.read_mem(mem, adr, len(data)))
         assert data == datar, (data, datar)
 
@@ -206,7 +200,6 @@ if __name__ == "__main__":
         format="[%(name)s.%(funcName)s:%(lineno)d] %(message)s")
 
     buf = BytesIO()
-    # cli.main(buf)
     tb = TB()
 
     xfers = []
@@ -217,7 +210,6 @@ if __name__ == "__main__":
         tb.log_cmds(cmds),
         tb.run_setup(),
         tb.test(),
-        # tb.p.write(buf.getvalue()),
     ], vcd_name="spi_pdq2.vcd")
     # out = np.array(tb.outputs, np.uint16).view(np.int16)
     # plt.plot(out)
