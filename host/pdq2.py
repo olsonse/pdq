@@ -540,7 +540,7 @@ class Pdq2SPI(Pdq2Base):
         self.dev = dev
         Pdq2Base.__init__(self, **kwargs)
 
-     def write(self, data):
+    def write(self, data):
         """Write data to the PDQ2 board over USB/parallel.
 
         SOF/EOF control sequences are appended/prepended to
@@ -550,7 +550,7 @@ class Pdq2SPI(Pdq2Base):
             data (bytes): Data to write.
         """
         logger.debug("> %r", data)
-        written = self.dev.write(msg)
+        written = self.dev.write(data)
         if isinstance(written, int):
-            assert written == len(msg), (written, len(msg))
+            assert written == len(data), (written, len(data))
         self.checksum = crc8(data, self.checksum)
