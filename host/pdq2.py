@@ -121,6 +121,8 @@ class Segment:
                 this line.
             silence (bool): Disable DAC clocks for the duration of this line.
             aux (bool): Assert the AUX (F5 TTL) output during this line.
+                The corresponding global AUX routing setting determines which
+                channels control AUX.
             shift (int): Duration and spline evolution exponent.
             jump (bool): Return to the frame address table after this line.
             clear (bool): Clear the DDS phase accumulator when starting to
@@ -307,6 +309,7 @@ class Pdq2:
         num_frames (int): Number of frames supported.
 
     Attributes:
+        checksum (int): Running checksum of data written.
         num_channels (int): Number of channels in this stack.
         num_boards (int): Number of boards in this stack.
         num_dacs (int): Number of DAC outputs per board.
@@ -355,6 +358,9 @@ class Pdq2:
     def write(self, data):
         """Write data to the PDQ2 board over USB/parallel.
 
+        SOF/EOF control sequences are appended/prepended to
+        the (escaped) data. The running checksum is updated.
+
         Args:
             data (bytes): Data to write.
         """
@@ -373,7 +379,7 @@ class Pdq2:
 
         Args:
             board (int): Board to write to (0-0xe), 0xf for all boards.
-            adr (int): Register address to write to (0-3)
+            adr (int): Register address to write to (0-3).
             data (int): Data to write (1 byte)
         """
         self.write(struct.pack(
@@ -387,7 +393,8 @@ class Pdq2:
             reset (bool): Reset the board. Memory is not reset. Self-clearing.
             clk2x (bool): Enable the clock multiplier (100 MHz instead of 50
                 MHz)
-            enable (bool): Enable the channel data parsers and spline interpolators.
+            enable (bool): Enable the channel data parsers and spline
+                interpolators.
             trigger (bool): Soft trigger. Logical or with the hardware trigger.
             aux_miso (bool): Drive SPI MISO on the AUX/F5 ttl port of each
                 board. If `False`, drive the masked logical or of the DAC
@@ -401,11 +408,21 @@ class Pdq2:
                        (trigger << 3) | (aux_miso << 4) | (aux_dac << 5))
 
     def set_checksum(self, crc=0, board=0xf):
-        """Set/reset the checksum register."""
+        """Set/reset the checksum register.
+
+        Args:
+            crc (int): Checksum value to write.
+            board (int): Board to write to (0-0xe), 0xf for all boards.
+        """
         self.write_reg(board, 1, crc)
 
     def set_frame(self, frame, board=0xf):
-        """Set the current frame."""
+        """Set the current frame.
+
+        Args:
+            frame (int): Frame to select.
+            board (int): Board to write to (0-0xe), 0xf for all boards.
+        """
         self.write_reg(board, 2, frame)
 
     def write_mem(self, channel, data, start_addr=0):
@@ -484,15 +501,20 @@ class Pdq2:
             self.write_mem(channel, ch.serialize())
 
     def flush(self):
+        """Flush pending data."""
         self.dev.flush()
 
     def disable(self, **kwargs):
+        """Disable the device."""
         self.set_config(enable=False, **kwargs)
         self.flush()
 
     def enable(self, **kwargs):
+        """Enable the device."""
         self.set_config(enable=True, **kwargs)
         self.flush()
 
     def ping(self):
+        """Ping method returning True. Required for ARTIQ remote
+        controller."""
         return True
