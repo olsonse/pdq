@@ -3,7 +3,6 @@ __pycache__
 *.bin
 *.vcd
 *.sav
-*.pdf
 *.pyo
 *.pyc
 doc/_build
