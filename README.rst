@@ -1,15 +1,15 @@
-=============
-PDQ2 Overview
-=============
+============
+PDQ Overview
+============
 
 .. image:: https://zenodo.org/badge/doi/10.5281/zenodo.11567.png
   :target: http://dx.doi.org/10.5281/zenodo.11567
   :alt: Zenodo DOI URL
-.. image:: https://travis-ci.org/m-labs/pdq2.svg?branch=master
-  :target: https://travis-ci.org/m-labs/pdq2
+.. image:: https://travis-ci.org/m-labs/pdq.svg?branch=master
+  :target: https://travis-ci.org/m-labs/pdq
   :alt: Continuous integration build and test
-.. image:: http://readthedocs.org/projects/pdq2/badge/?version=latest
-  :target: http://pdq2.readthedocs.org/en/latest/?badge=latest
+.. image:: http://readthedocs.org/projects/pdq/badge/?version=latest
+  :target: http://pdq.readthedocs.org/en/latest/?badge=latest
   :alt: Documentation Status
 
 
@@ -48,9 +48,9 @@ Programming
 
 Once the device has been programmed with the gateware and powered up, it can be used to generate waveforms.
 
-See the :class:`host.pdq2.Pdq2` class for how to access a stack of PDQ2 board programmatically, how to submit commands, and how prepare, serialize, and program segments, frames, and channels.
+See the :class:`host.pdq.Pdq` class for how to access a stack of PDQ board programmatically, how to submit commands, and how prepare, serialize, and program segments, frames, and channels.
 
-An example how :class:`host.pdq2.Pdq2` can be used is the command line test interface to the PDQ2 in :func:`host.cli.main`.
+An example how :class:`host.pdq.Pdq` can be used is the command line test interface to the PDQ in :func:`host.cli.main`.
 
 Individual commands are described in the manual in :ref:`usb-protocol`.
 

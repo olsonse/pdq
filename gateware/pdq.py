@@ -1,19 +1,19 @@
-# Copyright 2013-2015 Robert Jordens <jordens@gmail.com>
+# Copyright 2013-2017 Robert Jordens <jordens@gmail.com>
 #
-# This file is part of pdq2.
+# This file is part of pdq.
 #
-# pdq2 is free software: you can redistribute it and/or modify
+# pdq is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# pdq2 is distributed in the hope that it will be useful,
+# pdq is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with pdq2.  If not, see <http://www.gnu.org/licenses/>.
+# along with pdq.  If not, see <http://www.gnu.org/licenses/>.
 
 from migen import *
 from migen.genlib.record import Record
@@ -24,8 +24,8 @@ from .comm import Comm
 from .ft245r import Ft245r_rx  # , SimFt245r_rx
 
 
-class Pdq2Base(Module):
-    """PDQ2 Base configuration.
+class PdqBase(Module):
+    """PDQ Base configuration.
 
     Used both in functional simulation and final gateware.
 
@@ -49,7 +49,7 @@ class Pdq2Base(Module):
         self.submodules.comm = Comm(ctrl_pads, self.dacs)
 
 
-class Pdq2Sim(Module):
+class PdqSim(Module):
     ctrl_layout = [
         ("board", 4),
         ("aux", 1),
@@ -66,7 +66,7 @@ class Pdq2Sim(Module):
         self.ctrl_pads.frame.reset = 0b111  # pullup on cs_n
         self.ctrl_pads.trigger.reset = 1
         self.submodules.dut = ResetInserter(["sys"])(
-            Pdq2Base(self.ctrl_pads, **kwargs))
+            PdqBase(self.ctrl_pads, **kwargs))
         # self.comb += self.dut.reset_sys.eq(self.dut.comm.rg.reset)
         self.outputs = []
         self.aux = []
@@ -92,10 +92,10 @@ class Pdq2Sim(Module):
 
 
 class CRG(Module):
-    """PDQ2 Clock and Reset generator.
+    """PDQ Clock and Reset generator.
 
     Args:
-        platform (Platform): PDQ2 Platform.
+        platform (Platform): PDQ Platform.
 
     Attributes:
         rst (Signal): Reset input.
@@ -158,22 +158,22 @@ class CRG(Module):
 
 @SplitMemory()
 @FullMemoryWE()
-class Pdq2(Pdq2Base):
-    """PDQ2 Top module.
+class Pdq(PdqBase):
+    """PDQ Top module.
 
     Wires up USB FIFO reader :mod:`gateware.ft245r.Ft345r_rx`, clock and reset
     generator :mod:`CRG`, and the DAC output signals.
-    Delegates the wiring of the remaining modules to :mod:`Pdq2Base`.
+    Delegates the wiring of the remaining modules to :mod:`PdqBase`.
 
     ``pads.g2_out`` is assigned the DCM locked signal.
 
     Args:
-        platform (Platform): PDQ2 platform.
+        platform (Platform): PDQ platform.
     """
     def __init__(self, platform, **kwargs):
         self.platform = platform
         ctrl_pads = platform.request("ctrl")
-        Pdq2Base.__init__(self, ctrl_pads, **kwargs)
+        PdqBase.__init__(self, ctrl_pads, **kwargs)
         self.submodules.crg = CRG(platform)
         comm_pads = platform.request("comm")
         self.submodules.reader = Ft245r_rx(comm_pads)

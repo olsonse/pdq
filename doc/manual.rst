@@ -6,12 +6,12 @@ Reference Manual
 USB Protocol
 ------------
 
-The data connection to a PDQ2 stack is a single, full speed USB, parallel FIFO with byte granularity.
+The data connection to a PDQ stack is a single, full speed USB, parallel FIFO with byte granularity.
 On the host this appears as a "character device" or "serial port".
 Windows users may need to install the FTDI device drivers available at the FTDI web site and enable "Virtual COM port (VCP) emulation" so the device becomes available as a COM port.
 Under Linux the drivers are usually already shipped with the distribution and immediately available.
 Device permissions have to be handled as usual through group membership and udev rules.
-The USB bus topology or the device serial number can be used to uniquely identify and access a given PDQ2 stack.
+The USB bus topology or the device serial number can be used to uniquely identify and access a given PDQ stack.
 The serial number is stored in the FTDI FT245R USB FIFO chip and can be set as described in the old PDQ documentation.
 The byte order is little-endian (least significant byte first).
 
@@ -32,7 +32,7 @@ Name    Command  Description
 RESET   ``0x00`` Reset the FPGA registers. Does not reset memories. Does not reload the bitstream. Does not reset the USB interface.
 TRIGGER ``0x02`` Soft trigger. Logical OR with the external trigger control line to form the trigger signal to the spline.
 ARM     ``0x04`` Enable triggering. Disarming also aborts parsing of a frame and forces the parser to the frame jump table. A currently active line will finish execution.
-DCM     ``0x06`` Set the clock speed. Enabling chooses the Digital Clock Manager which doubles the clock and thus operates all FPGA logic and the DACs at 100 MHz. Disabling chooses a 50 MHz sampling and logic clock. The PDQ2 logic is inherently agnostic to the value of the sample clock. Scaling of coefficients and duration values must be performed on the host.
+DCM     ``0x06`` Set the clock speed. Enabling chooses the Digital Clock Manager which doubles the clock and thus operates all FPGA logic and the DACs at 100 MHz. Disabling chooses a 50 MHz sampling and logic clock. The PDQ logic is inherently agnostic to the value of the sample clock. Scaling of coefficients and duration values must be performed on the host.
 START   ``0x08`` Enable starting new frames (enables leaving the frame jump table).
 ======= ======== ===========
 
@@ -69,7 +69,7 @@ A memory write has the format (each row is one word of 16 bits):
 | ``data[length-1]`` |
 +--------------------+
 
-The channel number is a function of the board number (selected on the dial switch on each PDQ2 board) and the DAC number (0, 1, 2): ``channel = (board_addr << 4) | dac_number``.
+The channel number is a function of the board number (selected on the dial switch on each PDQ board) and the DAC number (0, 1, 2): ``channel = (board_addr << 4) | dac_number``.
 The length of the data written is ``length = end_addr - start_addr + 1``.
 
 .. warning::
@@ -284,7 +284,7 @@ The scaling of the coefficients is as follows:
 Wavesynth Format
 ----------------
 
-To describe a complete PDQ2 stack program, the Wavesynth format has been
+To describe a complete PDQ stack program, the Wavesynth format has been
 defined.
 
     * ``program`` is a sequence of ``frames``.
@@ -317,7 +317,7 @@ defined.
 Example Wavesynth Program
 .........................
 
-The following example wavesynth program configures a PDQ2 stack with a single board, three DAC channels.
+The following example wavesynth program configures a PDQ stack with a single board, three DAC channels.
 
 It configures a single frame (the first and only) consisting of a single triggered segment with three lines. The total frame duration is 80 cycles. The following waveforms are emitted on the three channels:
 
@@ -371,15 +371,15 @@ It configures a single frame (the first and only) consisting of a single trigger
     ]
 
 
-The following figure compares the output of the three channels as simulated by the ``artiq.wavesynth.compute_samples.Synthesizer`` test tool with the output from a full simulation of the PDQ2 gateware including the host side code, control commands, memory writing, memory parsing, triggering and spline evaluation.
+The following figure compares the output of the three channels as simulated by the ``artiq.wavesynth.compute_samples.Synthesizer`` test tool with the output from a full simulation of the PDQ gateware including the host side code, control commands, memory writing, memory parsing, triggering and spline evaluation.
 
-.. .. figure:: pdq2_wavesynth_test.svg
-.. figure:: pdq2_wavesynth_test.png
+.. .. figure:: pdq_wavesynth_test.svg
+.. figure:: pdq_wavesynth_test.png
 
-    PDQ2 and ``Synthesizer`` outputs for wavesynth test program.
+    PDQ and ``Synthesizer`` outputs for wavesynth test program.
 
     The abcissa is the time in clock cycles, the ordinate is the output voltage of the channel.
 
     The plot consists of six curves, three colored ones from the gateware simulation of the board and three black ones from the ``Synthesizer`` verification tool. The colored curves should be masked by the black curves up to integer rounding errors.
 
-    The source of this unittest is part of ARTIQ at ``artiq.test.test_pdq2.TestPdq2.test_run_plot``.
+    The source of this unittest is part of ARTIQ at ``artiq.test.test_pdq.TestPdq.test_run_plot``.

@@ -6,21 +6,21 @@ Code Documentation
 
 .. argparse::
     :ref: host.cli.get_argparser
-    :prog: pdq2
+    :prog: pdq
 
 .. automodule:: host.cli
     :members:
 
-:mod:`host.pdq2` module
------------------------
+:mod:`host.pdq` module
+----------------------
 
-.. automodule:: host.pdq2
+.. automodule:: host.pdq
     :members:
 
-:mod:`gateware.pdq2` module
----------------------------
+:mod:`gateware.pdq` module
+--------------------------
 
-.. automodule:: gateware.pdq2
+.. automodule:: gateware.pdq
     :members:
 
 :mod:`gateware.comm` module
@@ -54,7 +54,7 @@ Code Documentation
     :members:
 
 :mod:`gateware.spi` module
------------------------------
+--------------------------
 
 .. automodule:: gateware.spi
     :members:

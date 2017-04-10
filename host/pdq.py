@@ -1,19 +1,19 @@
-# Copyright 2013-2016 Robert Jordens <jordens@gmail.com>
+# Copyright 2013-2017 Robert Jordens <jordens@gmail.com>
 #
-# This file is part of pdq2.
+# This file is part of pdq.
 #
-# pdq2 is free software: you can redistribute it and/or modify
+# pdq is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# pdq2 is distributed in the hope that it will be useful,
+# pdq is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with pdq2.  If not, see <http://www.gnu.org/licenses/>.
+# along with pdq.  If not, see <http://www.gnu.org/licenses/>.
 
 from math import log, sqrt
 import logging
@@ -208,7 +208,7 @@ class Segment:
 
 
 class Channel:
-    """PDQ2 Channel.
+    """PDQ Channel.
 
     Attributes:
         num_frames (int): Number of frames supported.
@@ -293,7 +293,7 @@ class Channel:
         return self.table(entry) + data
 
 
-class Pdq2Base:
+class PdqBase:
     """
     PDQ stack.
 
@@ -310,7 +310,7 @@ class Pdq2Base:
     _mem_sizes = [None, (20,), (10, 10), (8, 6, 6)]  # 10kx16 units
 
     def __init__(self, num_boards=3, num_dacs=3, num_frames=32):
-        """Initialize PDQ2 stack.
+        """Initialize PDQ stack.
 
         Args:
             num_boards (int): Number of boards in this stack.
@@ -490,9 +490,9 @@ class Pdq2Base:
         return True
 
 
-class Pdq2(Pdq2Base):
+class Pdq(PdqBase):
     def __init__(self, url=None, dev=None, **kwargs):
-        """Initialize PDQ2 USB/Parallel device stack.
+        """Initialize PDQ USB/Parallel device stack.
 
         Args:
             url (str): Pyserial device URL. Can be ``hwgrep://`` style
@@ -501,15 +501,15 @@ class Pdq2(Pdq2Base):
                 ``/dev/ttyUSB0`` for a Linux serial port.
             dev (file-like): File handle to use as device. If passed, ``url``
                 is ignored.
-            **kwargs: See :class:`Pdq2Base` .
+            **kwargs: See :class:`PdqBase` .
         """
         if dev is None:
             dev = serial.serial_for_url(url)
         self.dev = dev
-        Pdq2Base.__init__(self, **kwargs)
+        PdqBase.__init__(self, **kwargs)
 
     def write(self, data):
-        """Write data to the PDQ2 board over USB/parallel.
+        """Write data to the PDQ board over USB/parallel.
 
         SOF/EOF control sequences are appended/prepended to
         the (escaped) data. The running checksum is updated.
@@ -534,14 +534,14 @@ class Pdq2(Pdq2Base):
         self.dev.flush()
 
 
-class Pdq2SPI(Pdq2Base):
+class PdqSPI(PdqBase):
     def __init__(self, dev=None, **kwargs):
-        """Initialize PDQ2 SPI device stack."""
+        """Initialize PDQ SPI device stack."""
         self.dev = dev
-        Pdq2Base.__init__(self, **kwargs)
+        PdqBase.__init__(self, **kwargs)
 
     def write(self, data):
-        """Write data to the PDQ2 board over USB/parallel.
+        """Write data to the PDQ board over USB/parallel.
 
         SOF/EOF control sequences are appended/prepended to
         the (escaped) data. The running checksum is updated.

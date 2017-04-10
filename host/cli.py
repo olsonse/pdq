@@ -1,33 +1,33 @@
 #!/usr/bin/python
-# Copyright 2013-2015 Robert Jordens <jordens@gmail.com>
+# Copyright 2013-2017 Robert Jordens <jordens@gmail.com>
 #
-# This file is part of pdq2.
+# This file is part of pdq.
 #
-# pdq2 is free software: you can redistribute it and/or modify
+# pdq is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# pdq2 is distributed in the hope that it will be useful,
+# pdq is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with pdq2.  If not, see <http://www.gnu.org/licenses/>.
+# along with pdq.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
 import numpy as np
 from scipy import interpolate
 
-from .pdq2 import Pdq2
+from .pdq import Pdq
 
 import argparse
 import time
 
 
 def get_argparser():
-    parser = argparse.ArgumentParser(description="""PDQ2 frontend.
+    parser = argparse.ArgumentParser(description="""PDQ frontend.
             Evaluates times and voltages, interpolates and uploads
             them.""")
     parser.add_argument("-s", "--serial", default="hwgrep://",
@@ -64,9 +64,9 @@ def get_argparser():
 
 
 def main(dev=None):
-    """Test a PDQ2 stack.
+    """Test a PDQ stack.
 
-    Parse command line arguments, configures PDQ2 stack, interpolate the
+    Parse command line arguments, configures PDQ stack, interpolate the
     time/voltage data using a spline, generate a wavesynth program from the
     data and upload it to the specified channel. Then perform the desired
     arming/triggering/starting functions on the stack.
@@ -81,7 +81,7 @@ def main(dev=None):
 
     if args.dump:
         dev = open(args.dump, "wb")
-    dev = Pdq2(args.serial, dev)
+    dev = Pdq(args.serial, dev)
 
     if args.reset:
         dev.write(b"")  # flush eop

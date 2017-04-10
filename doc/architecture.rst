@@ -1,14 +1,15 @@
 Architecture
 ============
 
-The PDQ2 is an interpolating, scalable, high speed arbitrary waveform generator.
+The PDQ is an interpolating, scalable, high speed arbitrary waveform generator.
 
     * Outputs: 16 bit DACs, +- 10V
     * Sample rate and interpolation speed: 50 MHz or 100 MHz online selectable.
-    * Scalability: Three DACs per board.
+    * Scalability: Up to three DACs per board.
       Up to 16 boards stackable to provide 48 channels per USB device.
-      Number of PDQ2 stacks limited by maximum number of USB devices per computer.
-    * Memory: 16 KiB or 8 KiB per channel. Compact partitionable data format.
+      Number of PDQ stacks limited by maximum number of USB devices per computer.
+    * Default designs with one, two, or three channels.
+    * Memory: 16/12/12 KiB, 20/20 KiB, or 40 Kib per channel. Compact partitionable data format.
     * Interpolation: DC bias B-spline: constant, linear, quadratic, or cubic.
       Selectable for each spline knot, each channel.
     * DDS output per channel: 32 bit frequency, 16 bit phase offset, 48 bit frequency chirp.
@@ -16,7 +17,9 @@ The PDQ2 is an interpolating, scalable, high speed arbitrary waveform generator.
       DDS output added to DC bias spline.
     * Digital outputs: One AUX channel per board, synchronous to spline knots.
     * External control, synchronization: One TTL trigger control input to trigger the execution of marked spline knots.
-    * Frame selection: Eight separate frames each describing a waveform. Selectable in hard real-time using three TTL frame select signals.
+    * Frame selection: Eight separate frames each describing a waveform. Selectable in hard real-time using SPI or USB frame select register.
+    * Programmable over USB or SPI using the same data and message format.
+    * Communications are tracked using checksums to verify correct data transfers.
 
 Spline Interpolation
 --------------------
@@ -68,11 +71,11 @@ See :mod:`misoc.cores.cordic` (in the MiSoC package) for a full documentation of
 Features
 --------
 
-Each PDQ2 card contains one FPGA that feeds three DAC channels.
-Multiple PDQ2 cards can be combined into a stack.
+Each PDQ card contains one FPGA that feeds three DAC channels.
+Multiple PDQ cards can be combined into a stack.
 There is one data connection and one set of digital control lines connected to a stack, common to all cards, all FPGAs, and all channels in that stack.
 
-Each channel of the PDQ2 can generate a waveform :math:`w(t)` that is the sum of a cubic spline :math:`a(t)` and a sinusoid modulated in amplitude by a cubic spline :math:`b(t)` and in phase/frequency by a quadratic spline :math:`c(t)`:
+Each channel of the PDQ can generate a waveform :math:`w(t)` that is the sum of a cubic spline :math:`a(t)` and a sinusoid modulated in amplitude by a cubic spline :math:`b(t)` and in phase/frequency by a quadratic spline :math:`c(t)`:
 
 .. math::
     w(t) = a(t) + b(t) \cos(c(t))
@@ -94,20 +97,20 @@ The encoding of the spline coefficients and associated metadata is described in 
 The execution of a knot can be delayed until a trigger signal is received.
 The trigger signal is common to all channels of all cards in a stack.
 
-Each channel can play waveforms from any of eight frames, selected by the three frame signals that are common to all channels and all boards of a stack.
-All frames of a channel share the same memory.
+Each channel can play waveforms from any of eight frames, selected by the frame selection register. All frames of a channel share the same memory.
 The memory layout is described in :ref:`memory-layout`.
 Transitions between frames happen at the end of frames.
 Frames can be aborted at the end of a spline knot by disarming the stack.
 
 Each channel also has one digital output `aux` that can be set or cleared at each knot.
-The logical OR of each set of three channels is mapped to the F5 output of each PDQ2 card.
+Each board can route a logical OR of a masked set of its channels or the SPI MISO signal to the AUX/F5 output.
 
-The waveform data is written into the channel memories over a full speed USB link.
+The waveform data is written into the channel memories over a full speed USB link or the SPI bus.
 Each channel memory can be accessed individually.
-Data or status messages can not be read back.
+Data or status messages can be read back through the SPI bus by enabling SPI
+MISO to be output on AUX/F5.
 
-The USB channel also carries in-band control commands to switch the clock speed between 50 MHz and 100 MHz, reset the device, arm or disarm the device, enable or disable soft triggering, and enable or disable the starting of new frames.
+The data channel also carries in-band control commands to switch the clock speed between 50 MHz and 100 MHz, reset the device, arm or disarm the device, enable or disable soft triggering, and enable or disable the starting of new frames.
 The USB protocol is described in :ref:`usb-protocol`.
 
 The host side software receives waveform data in an easy-to generate, portable, and human readable format that is then encoded and written to the channels attached to a device.

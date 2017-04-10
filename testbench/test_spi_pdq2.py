@@ -1,11 +1,29 @@
+# Copyright 2016-2017 Robert Jordens <jordens@gmail.com>
+#
+# This file is part of pdq.
+#
+# pdq is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# pdq is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with pdq.  If not, see <http://www.gnu.org/licenses/>.
+
+
 import logging
 from itertools import count
 
 from migen import run_simulation, passive, Module
 from misoc.cores.spi import SPIMachine
 
-from gateware.pdq2 import Pdq2Sim
-from host.pdq2 import crc8
+from gateware.pdq import PdqSim
+from host.pdq import crc8
 
 
 logger = logging.getLogger(__name__)
@@ -15,7 +33,7 @@ class TB(Module):
     def __init__(self):
         self.submodules.m = m = SPIMachine(data_width=32, clock_width=8,
                                            bits_width=6)
-        self.submodules.p = p = Pdq2Sim(mem_depths=[128, 128])
+        self.submodules.p = p = PdqSim(mem_depths=[128, 128])
         self.comb += [
             p.ctrl_pads.frame[0].eq(~m.cs),
             p.ctrl_pads.frame[1].eq(m.cg.clk),
@@ -216,7 +234,7 @@ if __name__ == "__main__":
         tb.log_cmds(cmds),
         tb.run_setup(),
         tb.test(),
-    ], vcd_name="spi_pdq2.vcd")
+    ], vcd_name="spi_pdq.vcd")
     # out = np.array(tb.outputs, np.uint16).view(np.int16)
     # plt.plot(out)
     # print(xfers)

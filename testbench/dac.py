@@ -1,19 +1,19 @@
-# Copyright 2013-2015 Robert Jordens <jordens@gmail.com>
+# Copyright 2013-2017 Robert Jordens <jordens@gmail.com>
 #
-# This file is part of pdq2.
+# This file is part of pdq.
 #
-# pdq2 is free software: you can redistribute it and/or modify
+# pdq is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# pdq2 is distributed in the hope that it will be useful,
+# pdq is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with pdq2.  If not, see <http://www.gnu.org/licenses/>.
+# along with pdq.  If not, see <http://www.gnu.org/licenses/>.
 
 from io import BytesIO
 
@@ -23,7 +23,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 
 from gateware.dac import Dac
-from host import pdq2
+from host import pdq
 
 
 class TB(Module):
@@ -103,7 +103,7 @@ def _main():
     # from migen.fhdl import verilog
     # print(verilog.convert(Dac()))
 
-    p = pdq2.Pdq2(dev=BytesIO())
+    p = pdq.Pdq(dev=BytesIO())
     p.program(_test_program)
     mem = p.channels[0].serialize()
     tb = TB(list(np.fromstring(mem, "<u2")))
