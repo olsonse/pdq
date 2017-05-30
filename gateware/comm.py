@@ -65,6 +65,14 @@ class ResetGen(Module):
 class FTDI2SPI(Module):
     """Converts parallel data stream from FTDI chip into framed
     SPI-like data.
+
+    It uses the :class:`Unescaper` to to detect escaped start-of-frame SOF
+    and EOF characters.
+
+    Attributes:
+        sink (Endpoint): Raw data from FTDI parallel bus.
+        source (Endpoint): Framed data stream (eop asserted when there is no
+            active frame).
     """
     def __init__(self):
         self.sink = Endpoint(bus_layout)
@@ -93,6 +101,10 @@ class FTDI2SPI(Module):
 
 
 class Arbiter(Module):
+    """Simple arbiter for two framed data streams.
+    Uses end-of-packet (eop) to detect that :attr:`sink0` is inactive
+    and yields to :attr:`sink1`.
+    """
     def __init__(self, width=8):
         self.sink0 = Endpoint(bus_layout)
         self.sink1 = Endpoint(bus_layout)
@@ -110,15 +122,18 @@ class Arbiter(Module):
 
 
 class Protocol(Module):
-    """Handles the memory write protocol and writes data to the channel
-    memories.
+    """Handles the register and memory protocols and
+    reads/writes data in the channel memories.
 
     Args:
-        board (Value): Address of this board.
-        dacs (list): List of :mod:`gateware.dac.Dac`.
+        mems (list): List of memories from :mod:`gateware.dac.Dac`.
 
     Attributes:
-        sink (Endpoint[mem_layout]): 16 bit data sink.
+        sink (Endpoint): 8 bit data sink.
+        source (Endpoint): 8 bit data source for SPI MISO read-back.
+        board (Signal(4)): Board address.
+        config (Record): Configuration register.
+        frame (Signal(max=32)): Selected frame.
     """
     def __init__(self, mems):
         self.sink = Endpoint(bus_layout)
@@ -265,9 +280,9 @@ class Comm(Module):
         dacs (list): List of :mod:`gateware.dac.Dac`.
 
     Attributes:
-        reset (Signal): Reset output from :class:`ResetGen`. Active high.
-        dcm_sel (Signal): DCM slock select. Enable clock doubler. Output.
-        sink (Endpoint[bus_layout]): 8 bit control data sink. Input.
+        rg: :class:`ResetGen`
+        proto: :class:`Protocol`
+        spi: :class:`SPISlave`
     """
     def __init__(self, ctrl_pads, dacs):
         rg = ResetGen()
