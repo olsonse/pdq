@@ -79,7 +79,7 @@ class Parser(Module):
             range(0, len(raw), len(read.dat_r))])
         data_read = Signal.like(lp.header.length)
 
-        self.submodules.fsm = fsm = FSM(reset_state="JUMP")
+        self.submodules.fsm = fsm = ResetInserter()(FSM(reset_state="JUMP"))
         fsm.act("JUMP",
                 read.adr.eq(self.frame),
                 If(self.start,
@@ -119,10 +119,11 @@ class Parser(Module):
                         NextState("HEADER")
                     )
                 ),
-                If(~self.arm,
-                    NextState("JUMP")
-                )
         )
+
+        self.comb += [
+                fsm.reset.eq(~self.arm)
+        ]
 
         self.sync += [
                 If(inc,
