@@ -22,7 +22,7 @@ script:
 - PYTHONPATH=. python3 testbench/test_proto.py
 - PYTHONPATH=. python3 testbench/test_spi.py
 - PYTHONPATH=. python3 testbench/test_crc.py
-- python3 ./make.py -x $(pwd)/xilinx/opt/Xilinx -c $CHANNELS
+- python3 ./make.py -x $(pwd)/opt/Xilinx -c $CHANNELS
 notifications:
   email: false
   slack:
