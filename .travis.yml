@@ -1,6 +1,9 @@
 language: python
 python:
 - '3.5'
+cache:
+  directories:
+    - xilinx
 env:
   global:
     secure: c676c0obZAykv+zmrOtukP/TxCSa9BHamFo5glVN5AIfoBRRZs5hpBRR6dWYjZAs2Gdnv8ICXeOrV2yMvkJvAhzilJMkx88RRDlxrTEU+JiUDFWnzSu6fsqZ+ffHGQ3A5DhgLBF0EY8FVkSm2rapknekjoixFJr7BlMszMhw8SeRt5iXoVu+6BkLzk55P3w4grCSU1orzT/DK2dK4iBvqPRfp4WU22qgUrq0vE+B8xF6bLIJAP6w7G3tbNGjQ53UL6wGLlPXxiDFzk/a4poV9AGw+h4NuSEUV4/jFj01PlUUDqQfPU885kQA/j2o1Hv9RvTULpncgPCRO9AHMd3apRCSRkfgixakq4scsLq4ZxSfYY44nYCIhKHp7bmCm/CWrMaQD/E5K2s5tjFVF/ozfOG7cJpcHdmFBxdycnjrxKTMSvtQN8wZucGe1WwFKUv6i06+fC1lsqx1ydArC5gcVBKPPpmXCflcDRdM2AU5743+awidjItNjCFz/64+51qet/KiovzzVwgwYm837oZyAP8MZ+yiR0gEtXsNYrGXo2biId3qK776wIzQ2PebWlKUxK5pjWvWKjDFrfaBCg7L4dYGsHaz4GwTEsZ9OPEct+LJrVSlLxCYpFxOkNTM1GRQl/ya6OEBWEKYQCj5jL7fQgI33Mb7xIkRAxSY+XWPOfE=
@@ -19,7 +22,7 @@ script:
 - PYTHONPATH=. python3 testbench/test_proto.py
 - PYTHONPATH=. python3 testbench/test_spi.py
 - PYTHONPATH=. python3 testbench/test_crc.py
-- python3 ./make.py -x $(pwd)/opt/Xilinx -c $CHANNELS
+- python3 ./make.py -x $(pwd)/xilinx/opt/Xilinx -c $CHANNELS
 notifications:
   email: false
   slack:
