@@ -65,7 +65,7 @@ class Parser(Module):
         self.source = Endpoint(line_layout)
         self.arm = Signal()
         self.start = Signal()
-        self.frame = Signal(3)
+        self.frame = Signal(max=32)
 
         ###
 
