@@ -97,7 +97,7 @@ The encoding of the spline coefficients and associated metadata is described in 
 The execution of a knot can be delayed until a trigger signal is received.
 The trigger signal is common to all channels of all cards in a stack.
 
-Each channel can play waveforms from any of eight frames, selected by the frame selection register. All frames of a channel share the same memory.
+Each channel can play waveforms from any of 256 frames, selected by the frame selection register. All frames of a channel share the same memory.
 The memory layout is described in :ref:`memory-layout`.
 Transitions between frames happen at the end of frames.
 Frames can be aborted at the end of a spline knot by disarming the stack.
