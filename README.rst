@@ -26,20 +26,23 @@ Requirements:
   * MiSoC (https://github.com/m-labs/misoc)
   * Xilinx ISE (a WebPack license is sufficient; development uses ISE 14.7)
 
-Installation of Migen and MiSoC differs depending on what packaging system is used (or if one is used at all).
+Installation of Migen and MiSoC differs depending on what packaging system is used (or if one is used at all). Migen currently depends on Python 3.5 (see https://github.com/m-labs/migen/issues/62).
 Migen and MiSoC can be installed using ``pip``: ::
 
   $ pip install -e git://github.com/m-labs/migen.git#egg=migen
+  $ pip install -e git://github.com/m-labs/asyncserial#egg=asyncserial
   $ pip install -e git://github.com/m-labs/misoc.git#egg=misoc
 
-If you are using conda/anaconda: ::
+M-Labs also provides conda packages for Migen and MiSoC under the ``main`` and ``dev`` labels. Instead of using ``pip``, the conda packages can be installed: ::
 
   $ conda install -c m-labs/label/dev migen misoc
 
-M-Labs also provides conda packages for Migen and MiSoC under the ``main`` and ``dev`` labels.
 Then to build the gateware::
 
-  $ python make.py
+  $ python make.py -c 3
+
+where ``-c 3`` determines the number of channels (see also ``python make.py -h``
+for help).
 
 The HTML documentation can be built with::
 

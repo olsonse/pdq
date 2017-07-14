@@ -25,8 +25,12 @@ from gateware.pdq import Pdq
 def _main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-x", "--xilinx", default=None)
-    parser.add_argument("-c", "--config", default=[],
-                        type=int, action="append")
+    parser.add_argument("-c", "--config", help="Configurations to build. "
+            "The configuration is the number of DAC channels supported "
+            "(1, 2, or 3). Can be specified multiple times to build multiple "
+            "configurations. Default is to build all three configuations. "
+            "Waveform memory is distributed among the channels.",
+            default=[], type=int, action="append")
     args = parser.parse_args()
 
     if not args.config:
