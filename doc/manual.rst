@@ -1,12 +1,170 @@
 Reference Manual
 ================
 
+.. _protocol:
+
+Protocol
+--------
+
+A PDQ stack provides two different channels for data communication apart from the hardware trigger signal. Both SPI and USB can be used to configure the device, write registers and write to memory. The SPI bus provides a read-back mechanism to verify correct communication and read out status. The USB bus is read-only.
+
+.. note::
+    Both SPI and USB are active at the same time. They can both be used to access
+    the device. But care should be taken not to use both methods at the same time.
+    In that case SPI has precedence and will interrupt and corrupt any ongoing USB
+    transfers.
+
+
+Messages
+--------
+
+Each communication with the PDQ over SPI or USB forms a message. Each message
+starts with a one-byte header determining the address of the board to access, the address of the register or memory to access and the action to perform.
+
+========== ============= ===========
+Name       Length (Bits) Description
+========== ============= ===========
+``adr``    2             Channel memory or register address
+``is_mem`` 1             Flag signaling a channel memory access
+``board``  4             Board address (the selector switch on the PDQ board). ``0xf == 15`` signaling the broadcast address to access all boards.
+``we``     1             Write-enable. Access is a (register or channel memory) write.
+========== ============= ===========
+
+For example, ``0b0_1111_0_00`` signals a read from register 0 on any board. Since
+data reads can only be performed over SPI and since only one board can drive the MISO line this will read register 0 from the master board.
+
+As another example, ``0b1_0011_1_01`` signals a write to the second channel memory of board number 3.
+
+The data following the header byte then depends on the action performed. The
+following table defines the data format both to (MOSI/USB) and from the
+device:
+
+======== ====== ================================================================= =======
+Target   Access MOSI/USB                                                          MISO
+======== ====== ================================================================= =======
+Register read   ``HEAD dummy dummy``                                              ``dummy dummy DATA``
+Register write  ``HEAD DATA``                                                     ``dummy ....``
+Memory   read   ``HEAD ADDR_LO ADDR_HI dummy dummy ....``                         ``dummy dummy dummy DATA_LO DATA_HI ....``
+Memory   write  ``HEAD ADDR_LO ADDR_HI DATA0_LO DATA0_HI DATA1_LO DATA1_HI ....`` ``dummy ....``
+======== ====== ================================================================= =======
+
+
+Registers
+.........
+
+========== ========================== =
+Name       Register address (``adr``) Description
+========== ========================== =
+``config`` 0                          Configuration register
+``crc``    1                          Data checksum register
+``frame``  2                          Frame selection register
+========== ========================== =
+
+
+Configuration
+`````````````
+
+The configuration register is used to reset the device, configure its clock
+source, enable and disable it, perform a soft trigger over USB or SPI and to
+configure the behavior of the AUX/F5 TTL.
+
+============ ============= =
+Name         Length (bits) Description
+============ ============= =
+``reset``    1             Reset the boards. Self-clearing. Reset the FPGA registers. Does not reset memories. Does not reload the bitstream. Does not reset the USB interface.
+``clk2x``    1             Choose the clock speed. Enabling chooses the Digital Clock Manager which doubles the clock and thus operates all FPGA logic and the DACs at 100 MHz. Disabling chooses a 50 MHz sampling and logic clock. The PDQ logic is inherently agnostic to the value of the sample clock. Scaling of coefficients and duration values must be performed on the host.
+``enable``   1             Enable the channel data parsers and spline interpolators. Disabling also aborts parsing of a frame and forces the parser to the frame jump table. Any currently active line will also be aborted.
+``trigger``  1             Soft trigger. Logical or with the hardware trigger.
+``aux_miso`` 1             If set, drive the SPI MISO data on the AUX/F5 TTL port of each bord. If cleared, drive the masked logical OR of the DAC channels' aux data on AUX/F5.
+``aux_dac``  3             Mask for AUX/F5. Each bit represents one channel.
+============ ============= =
+
+AUX/F5 is therefore: ``aux_f5 = aux_miso ? spi_miso : (aux_dac & Cat(_.aux for _ in channels) != 0)``.
+
+Examples of messages (register writes with header and data):
+
+    * ``0b1_1111_0_00 0b000_0_0_0_0_1`` resets all boards.
+    * ``0b1_0000_0_00 0b000_1_0_1_1_0`` enables board 0, 100 MHz clock, and
+      MISO on AUX/F5.
+    * The sequence of two configuration register writes ``0b1_1111_0_00 0b000_1_1_1_1_0`` and ``0b1_1111_0_00 0b000_1_0_1_1_0`` performs a short trigger over SPI.
+
+Checksum
+````````
+
+When receiving message bytes (USB framing and escape bytes are ignored; see
+below :ref:`usb-protocol`) from either SPI/MOSI or USB, the checksum register is
+updated with a new value. This can be used to ensure and verify correct data
+transfer by computing the checksum on the sending end and then reading it back
+and comparing.
+
+The checksum algorithm used is a 8-bit cyclic redundancy check
+(CRC) with a polynomial of ``0x07``. This polynomial is also commonly known as
+CRC-CCITT and implemented both in gateware on the PDQ and in the host side
+code. Given some example input it behavoes as follows: ::
+
+    crc8([1,2,3,4,5,6,7,8,9]) == 0x85
+
+The checksum register can be set to initialize it with a known value and read
+to obtain the current value.
+
+Examples:
+
+    * ``0b1_1111_0_01 0x00`` clears the checksum register on all boards.
+    * ``0b0_1111_0_01 0x00 0x00`` reads the checksum register on the board connected
+      to MISO.
+
+Frame
+`````
+
+The frame selection register determines the currently executed frame for all
+channels on the addressed board(s).
+
+Examples:
+
+    * ``0b1_1111_0_10 0x13`` selects frame 0x13 on all connected boards.
+
+
+Memory access
+.............
+
+The payload data of the message is interpreted as a 16 bit memory address (in the channel memory) followed by a sequence of 16 bit values (two bytes little-endian).
+
+.. warning::
+    * No length check or address verification is performed.
+    * Overflowing the address counter will wrap around to the first address.
+    * Non-existent or invalid combinations of board address and/or channel number are silently ignored or wrapped.
+
+Examples:
+
+    * ``0b1_0001_1_10 0x03 0x04 0x05 0x06 0x07 0x08`` writes ``0x0605 0x0807`` to the memory locations including and following address ``0x0403`` of channel ``0b10`` on board ``0b0001``.
+
+.. _spi-protocol:
+
+SPI Protocol
+------------
+
+The SPI bus provides access to a stack of PDQ boards over four-wire SPI (separate MISO and MOSI lines).
+
+The SPI bus is wired with ``CS_N`` from the SPI master connected to
+``F2 IN`` on the master PDQ, ``CLK`` connected to ``F3 IN``, ``MOSI``
+connected to ``F4 IN`` and ``MISO`` (optionally) connected to ``F5 OUT``.
+``F1 TTL Input Trigger`` remains as waveform trigger input.
+Due to hardware constraints, there can only be one board connected to the
+core device's MISO line and therefore there can only be SPI readback
+from one board at any time.
+
+Messages on the SPI bus are framed using SPI ``CS_N``. There can be at most one
+transaction per SPI ``CS_N`` cycle. Register writes are performed when the last
+bit of the data is clocked into the device. Register access messages have
+fixed length (two bytes for a write and three bytes for a read).
+Message data after a register access is ignored.
+
 .. _usb-protocol:
 
 USB Protocol
 ------------
 
-The data connection to a PDQ stack is a single, full speed USB, parallel FIFO with byte granularity.
+The USB data connection to a PDQ stack is a single, full speed USB, parallel FIFO with byte granularity.
 On the host this appears as a "character device" or "serial port".
 Windows users may need to install the FTDI device drivers available at the FTDI web site and enable "Virtual COM port (VCP) emulation" so the device becomes available as a COM port.
 Under Linux the drivers are usually already shipped with the distribution and immediately available.
@@ -15,85 +173,26 @@ The USB bus topology or the device serial number can be used to uniquely identif
 The serial number is stored in the FTDI FT245R USB FIFO chip and can be set as described in the old PDQ documentation.
 The byte order is little-endian (least significant byte first).
 
-Control Messages
-................
+Each message on the USB bus is framed by the ASCII STX (``0x02``) and ASCII
+ETX (``0x03``) control characters. Control characters are escaped using
+``0xa5``. Since the escape character can also appear inside a message each
+``0xa5`` within the message is also escaped using ``0xa5``.
+A valid message as sent over the USB connection therefore looks like: ::
 
-The communication to the device is one-way, write-only.
-Synchronization has to be achieved by properly sequencing the setting of digital lines with control commands, control commands, and memory writes on the USB bus.
+    0xa5 0x02  <escaped-message> 0xa5 0x03
 
-Control commands apply to all channels on all boards in a stack.
-
-Control commands on the USB bus are single bytes prefixed by the ``0xa5`` escape sequence (``0xa5 0xYY``).
-If the byte ``0xa5`` is to be part of the (non-control) data stream it has to be escaped by ``0xa5`` itself.
-
-======= ======== ===========
-Name    Command  Description
-======= ======== ===========
-RESET   ``0x00`` Reset the FPGA registers. Does not reset memories. Does not reload the bitstream. Does not reset the USB interface.
-TRIGGER ``0x02`` Soft trigger. Logical OR with the external trigger control line to form the trigger signal to the spline.
-ARM     ``0x04`` Enable triggering. Disarming also aborts parsing of a frame and forces the parser to the frame jump table. A currently active line will finish execution.
-DCM     ``0x06`` Set the clock speed. Enabling chooses the Digital Clock Manager which doubles the clock and thus operates all FPGA logic and the DACs at 100 MHz. Disabling chooses a 50 MHz sampling and logic clock. The PDQ logic is inherently agnostic to the value of the sample clock. Scaling of coefficients and duration values must be performed on the host.
-START   ``0x08`` Enable starting new frames (enables leaving the frame jump table).
-======= ======== ===========
-
-The LSB of the command byte then determines whether the command is a "disable" or an "enable" command.
-
-Examples:
-
-    * ``0xa5 0x02`` is ``TRIGGER`` enable,
-    * ``0xa5 0x03`` is ``TRIGGER`` disable,
-    * ``0xa5 0xa5`` is a single ``0xa5`` in the non-control data stream.
-
-
-Memory writes
-.............
-
-The non-control data stream is interpreted as 16 bit values (two bytes little-endian).
-The stream consists purely of writes of data to memory locations on individual channels.
-One channel/one memory can be written to at any given time.
-A memory write has the format (each row is one word of 16 bits):
-
-+--------------------+
-| ``channel``        |
-+--------------------+
-| ``start_addr``     |
-+--------------------+
-| ``end_addr``       |
-+--------------------+
-| ``data[0]``        |
-+--------------------+
-| ``data[1]``        |
-+--------------------+
-| ...                |
-+--------------------+
-| ``data[length-1]`` |
-+--------------------+
-
-The channel number is a function of the board number (selected on the dial switch on each PDQ board) and the DAC number (0, 1, 2): ``channel = (board_addr << 4) | dac_number``.
-The length of the data written is ``length = end_addr - start_addr + 1``.
-
-.. warning::
-    * No length check or address verification is performed.
-    * Overflowing writes wrap.
-    * Non-existent or invalid combinations of board address and/or channel number are silently ignored or wrapped.
-    * If the write format is not adhered to, synchronization is lost and behavior is undefined.
-    * A valid ``RESET`` sequence will restore synchronization.
-      To reliably reset under all circumstances, ensure that the reset sequence ``0xa5 0x00`` is *not* preceded by an (un-escaped) escape character.
-
-Control commands can be inserted at any point in the non-control data stream.
-
-Examples:
-
-    * ``0x0072 0x0001 0x0003 0x0005 0x0007 0x0008`` writes the three words ``0x0005 0x0007 0x0008`` to the memory address ``0x0001`` of DAC channel 2 (the last of three) on board 7 (counting from 0).
-    * ``0xa5 0x06 0x0000 0x00a5a5 0x00a5a5 0xa5a5a5a5 0xa5 0x02 0xa5 0x04 0xa5 0x08`` enables the clock doubler (100 MHz) on all channels, then writes the single word ``0xa5a5`` to address ``0x00a5`` (note the escaping and the endianess) of channel 0 of board 0, enables soft trigger on all channels, arms all channels, and finally starts all channels.
-
+where ``<escaped message>`` has all occurences of ``0xa5`` replaced by ``0xa5
+0xa5``.
 
 .. _memory-layout:
 
 Memory Layout
 -------------
 
-The three DAC channels on each board have 8192, 8192, 4096 words (16 bit each) capacity (16 KiB, 16 KiB, 8 KiB).
+Depending on the bitstream configuration the memory is divided up among the
+channels. For three channels the memories contain (16, 12, 12) KiB, for two
+channels, they contain (20, 20) KiB and a single channel has all 40 KiB
+available.
 Overflowing writes wrap around.
 The memory is interpreted as consisting of a table of frame start addresses with 8 entries, followed by data.
 The layout allows partitioning the waveform memory arbitrarily among the frames of a channel.

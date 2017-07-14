@@ -6,8 +6,8 @@ The PDQ is an interpolating, scalable, high speed arbitrary waveform generator.
     * Outputs: 16 bit DACs, +- 10V
     * Sample rate and interpolation speed: 50 MHz or 100 MHz online selectable.
     * Scalability: Up to three DACs per board.
-      Up to 16 boards stackable to provide 48 channels per USB device.
-      Number of PDQ stacks limited by maximum number of USB devices per computer.
+      Up to 16 boards stackable to provide 48 channels per USB/SPI device.
+      Number of PDQ stacks limited by maximum number of USB/SPI devices per computer.
     * Default designs with one, two, or three channels.
     * Memory: 16/12/12 KiB, 20/20 KiB, or 40 Kib per channel. Compact partitionable data format.
     * Interpolation: DC bias B-spline: constant, linear, quadratic, or cubic.
