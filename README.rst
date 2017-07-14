@@ -50,6 +50,15 @@ The HTML documentation can be built with::
   $ make -C doc html
 
 
+Flashing
+========
+
+For each PDQ board, power it with 5V (only the 5V digital power is required).
+Connect a JTAG adapter (e.g. Xilinx Platform Cable USB II) to the board. Use
+Xilinx Impact to write the flash to the board. Some example scripts are
+included in the ``misc`` directory.
+
+
 Programming
 ===========
 
