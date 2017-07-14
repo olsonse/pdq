@@ -117,7 +117,8 @@ Frame
 `````
 
 The frame selection register determines the currently executed frame for all
-channels on the addressed board(s).
+channels on the addressed board(s). There are currently 32 frames (5 bits)
+supported.
 
 Examples:
 
