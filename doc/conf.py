@@ -70,7 +70,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'pdq'
-copyright = '2016, M-Labs Limited'
+copyright = '2016-2017, M-Labs Limited'
 author = 'Robert Jördens'
 
 # The version info for the project you're documenting, acts as replacement for
