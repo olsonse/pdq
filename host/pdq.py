@@ -149,7 +149,7 @@ class Segment:
             values (list[int]): Values to pack.
 
         Returns:
-            data (bytes): Packed data.
+            bytes: Packed data.
         """
         fmt = "<"
         ud = []
@@ -240,7 +240,7 @@ class Channel:
         Assign segment start addresses and determine length of data.
 
         Returns:
-            addr (int): Amount of memory in use on this channel.
+            int: Amount of memory in use on this channel.
         """
         addr = self.num_frames
         for segment in self.segments:
@@ -265,7 +265,7 @@ class Channel:
                 used as frame entry points.
 
         Returns:
-            table (bytes): Frame address table.
+            bytes: Frame address table.
         """
         table = [0] * self.num_frames
         if entry is None:
@@ -286,7 +286,7 @@ class Channel:
             entry (list[Segment]): See :meth:`table`.
 
         Returns:
-            data (bytes): Channel memory data.
+            bytes: Channel memory data.
         """
         self.place()
         data = b"".join([segment.data for segment in self.segments])
