@@ -8,8 +8,8 @@ PDQ Overview
 .. image:: https://travis-ci.org/m-labs/pdq.svg?branch=master
   :target: https://travis-ci.org/m-labs/pdq
   :alt: Continuous integration build and test
-.. image:: http://readthedocs.org/projects/pdq2/badge/?version=latest
-  :target: http://pdq2.readthedocs.org/en/latest/?badge=latest
+.. image:: http://readthedocs.org/projects/pdq/badge/?version=latest
+  :target: http://pdq.readthedocs.org/en/latest/?badge=latest
   :alt: Documentation Status
 
 
