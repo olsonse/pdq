@@ -1,3 +1,6 @@
+from artiq.experiment import *
+
+
 class PDQ2SPI(EnvExperiment):
     """
     Example experiment controling a PDQ board stack from ARTIQ over SPI.
@@ -9,32 +12,25 @@ class PDQ2SPI(EnvExperiment):
     After building the desired PDQ bitstream flash that bitstream to the
     boards (see the PDQ manual).
 
-    Add a device_db entry for the pdq on spi to along the lines
-    (a dapt to your specific setup):
-
-    "pdq0": {
-        "type": "local",
-        "module": "artiq.coredevice.pdq",
-        "class": "PDQ",
-        "arguments": {"spi_device": "spi_sma", "chip_select": 1}
-    }
+    Example device_db entries are provided in device_db.pyon. Adapt them to
+    your specific situation.
     """
     def build(self):
-	self.setattr_device("core")
-	self.setattr_device("pdq0")
-	self.setattr_device("led")
+        self.setattr_device("core")
+        self.setattr_device("pdq")
+        self.setattr_device("led")
 
     @kernel
     def run(self):
-	self.core.reset()
-	self.core.break_realtime()
-	self.pdq0.setup_bus(write_div=50, read_div=50)
-	self.pdq0.write_config(reset=1)
+        self.core.reset()
+        self.core.break_realtime()
+        self.pdq.setup_bus(write_div=50, read_div=50)
+        self.pdq.write_config(reset=1)
 
-	for i in range(100):
-	    delay(80*us)
-	    self.led.on()
-	    self.pdq0.write_config(clk2x=1, trigger=0, enable=0, aux_miso=1)
-	    self.pdq0.write_crc(0)
-	    self.pdq0.write_frame(0)
-	    self.led.off()
+        for i in range(100):
+            delay(80*us)
+            self.led.on()
+            self.pdq.write_config(clk2x=1, trigger=0, enable=0, aux_miso=1)
+            self.pdq.write_crc(0)
+            self.pdq.write_frame(0)
+            self.led.off()
