@@ -19,16 +19,14 @@
 from io import BytesIO
 
 from migen import run_simulation
-from matplotlib import pyplot as plt
-import numpy as np
 
 from gateware.pdq import PdqSim
 from host import cli
 
 
-def main():
+def test():
     buf = BytesIO()
-    cli.main(buf)
+    cli.main(buf, args=[])
 
     def run(n):
         for i in range(n):
@@ -38,10 +36,16 @@ def main():
     tb = PdqSim()
     run_simulation(tb, [tb.write(buf.getvalue()), tb.record(), run(500)],
                    vcd_name="pdq.vcd")
-    out = np.array(tb.outputs, np.uint16).view(np.int16)
-    plt.plot(out)
-    plt.show()
+    try:
+        from matplotlib import pyplot as plt
+        import numpy as np
+    except ImportError:
+        pass
+    else:
+        out = np.array(tb.outputs, np.uint16).view(np.int16)
+        plt.step(np.arange(len(out)) - 22, out, "-r")
+        plt.show()
 
 
 if __name__ == "__main__":
-    main()
+    test()

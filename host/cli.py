@@ -63,7 +63,7 @@ def get_argparser():
     return parser
 
 
-def main(dev=None):
+def main(dev=None, args=None):
     """Test a PDQ stack.
 
     Parse command line arguments, configures PDQ stack, interpolate the
@@ -72,7 +72,7 @@ def main(dev=None):
     arming/triggering/starting functions on the stack.
     """
     parser = get_argparser()
-    args = parser.parse_args()
+    args = parser.parse_args(args=args)
 
     if args.debug:
         logging.basicConfig(level=logging.DEBUG)

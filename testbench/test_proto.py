@@ -117,8 +117,12 @@ class TB(Module):
         return r
 
 
-if __name__ == "__main__":
+def test():
     # print(verilog.convert(TB()))
     tb = TB()
     run_simulation(tb, tb.test(),
                    vcd_name="protocol.vcd")
+
+
+if __name__ == "__main__":
+    test()

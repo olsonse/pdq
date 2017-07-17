@@ -219,7 +219,7 @@ class TB(Module):
         assert data == datar, (data, datar)
 
 
-if __name__ == "__main__":
+def test():
     logging.basicConfig(
         level=logging.INFO,
         format="[%(name)s.%(funcName)s:%(lineno)d] %(message)s")
@@ -238,3 +238,7 @@ if __name__ == "__main__":
     # out = np.array(tb.outputs, np.uint16).view(np.int16)
     # plt.plot(out)
     # print(xfers)
+
+
+if __name__ == "__main__":
+    test()

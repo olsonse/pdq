@@ -16,11 +16,9 @@
 # along with pdq.  If not, see <http://www.gnu.org/licenses/>.
 
 from io import BytesIO
+import struct
 
 from migen import *
-
-from matplotlib import pyplot as plt
-import numpy as np
 
 from gateware.dac import Dac
 from host import pdq
@@ -96,7 +94,7 @@ _test_program = [
 ]
 
 
-def _main():
+def test():
     import logging
     logging.basicConfig(level=logging.DEBUG)
 
@@ -106,13 +104,20 @@ def _main():
     p = pdq.Pdq(dev=BytesIO())
     p.program(_test_program)
     mem = p.channels[0].serialize()
-    tb = TB(list(np.fromstring(mem, "<u2")))
+    mem = struct.unpack("<" + "H"*(len(mem)//2), mem)
+    tb = TB(mem)
     run_simulation(tb, tb.run(400), vcd_name="dac.vcd")
 
-    out = np.array(tb.outputs, np.uint16).view(np.int16)
-    plt.step(np.arange(len(out)) - 22, out, "-r")
-    plt.show()
+    try:
+        from matplotlib import pyplot as plt
+        import numpy as np
+    except ImportError:
+        pass
+    else:
+        out = np.array(tb.outputs, np.uint16).view(np.int16)
+        plt.step(np.arange(len(out)) - 22, out, "-r")
+        plt.show()
 
 
 if __name__ == "__main__":
-    _main()
+    test()

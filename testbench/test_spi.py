@@ -85,7 +85,7 @@ class TB(Module):
         return r
 
 
-if __name__ == "__main__":
+def test():
     logging.basicConfig(
         level=logging.INFO,
         format="[%(name)s.%(funcName)s:%(lineno)d] %(message)s")
@@ -107,3 +107,7 @@ if __name__ == "__main__":
     assert mosi_write == mosi_read, (mosi_write, mosi_read)
     assert miso_write == miso_read, (miso_write, miso_read)
     #assert eop_read == [1, 1], (eop_read,)
+
+
+if __name__ == "__main__":
+    test()

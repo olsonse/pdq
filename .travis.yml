@@ -16,12 +16,10 @@ before_install:
 - pip install --src ./src -e git+https://github.com/m-labs/asyncserial.git#egg=asyncserial
 - pip install --src ./src -e git+https://github.com/m-labs/misoc.git#egg=misoc
 - pip install colorama
+- pip install nose
 - "./.travis/get-xilinx.sh"
 script:
-- PYTHONPATH=. python3 testbench/escape.py
-- PYTHONPATH=. python3 testbench/test_proto.py
-- PYTHONPATH=. python3 testbench/test_spi.py
-- PYTHONPATH=. python3 testbench/test_crc.py
+- nosetests -v
 - python3 ./make.py -x $(pwd)/opt/Xilinx -c $CHANNELS
 notifications:
   email: false

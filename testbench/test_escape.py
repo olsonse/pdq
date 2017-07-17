@@ -42,7 +42,7 @@ def _test_unescaper(dut, data, aout, bout):
         yield dut.sink.stb.eq(0)
 
 
-if __name__ == "__main__":
+def test():
     data = [1, 2, 0xa5, 3, 4, 0xa5, 0xa5, 5, 6, 0xa5, 0xa5, 0xa5, 7, 8,
             0xa5, 0xa5, 0xa5, 0xa5, 9, 10]
     aexpect = [1, 2, 4, 0xa5, 5, 6, 0xa5, 8, 0xa5, 0xa5, 9, 10]
@@ -54,3 +54,7 @@ if __name__ == "__main__":
                    vcd_name="escape.vcd")
     assert aout == aexpect, (aout, aexpect)
     assert bout == bexpect, (bout, bexpect)
+
+
+if __name__ == "__main__":
+    test()
