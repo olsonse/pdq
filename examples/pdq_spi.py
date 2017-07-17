@@ -25,12 +25,12 @@ class PDQ2SPI(EnvExperiment):
         self.core.reset()
         self.core.break_realtime()
         self.pdq.setup_bus(write_div=50, read_div=50)
-        self.pdq.write_config(reset=1)
+        self.pdq.set_config(reset=1)
 
         for i in range(100):
             delay(80*us)
             self.led.on()
-            self.pdq.write_config(clk2x=1, trigger=0, enable=0, aux_miso=1)
-            self.pdq.write_crc(0)
-            self.pdq.write_frame(0)
+            self.pdq.set_config(clk2x=1, trigger=0, enable=0, aux_miso=1)
+            self.pdq.set_crc(0)
+            self.pdq.set_frame(0)
             self.led.off()

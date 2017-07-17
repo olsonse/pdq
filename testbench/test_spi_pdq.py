@@ -113,7 +113,7 @@ class TB(Module):
             yield
         return (yield self.m.reg.data)
 
-    def write_reg(self, adr, data, board=0xf):
+    def set_reg(self, adr, data, board=0xf):
         cmd = self._cmd(board, False, adr, True)
         yield from self.xfer((cmd << 24) | (data << 16), 16, 0)
         self.crc([cmd, data])
@@ -121,7 +121,7 @@ class TB(Module):
         for i in range(10):
             yield
 
-    def read_reg(self, adr, board=0xf):
+    def get_reg(self, adr, board=0xf):
         cmd = self._cmd(board, False, adr, False)
         data = (yield from self.xfer((cmd << 24), 16, 8)) & 0xff
         self.checksum_read = self.crc([cmd])
@@ -168,7 +168,7 @@ class TB(Module):
         for i in range(20):
             yield
 
-        yield from self.write_reg(adr=0, data=self._config(aux_miso=True))
+        yield from self.set_reg(adr=0, data=self._config(aux_miso=True))
 
         # TODO
 
@@ -176,35 +176,35 @@ class TB(Module):
         for i in range(20):
             yield
 
-        yield from self.write_reg(adr=0, data=self._config(aux_miso=True))
+        yield from self.set_reg(adr=0, data=self._config(aux_miso=True))
 
         adr = 0
         data = self._config(aux_miso=True)
-        yield from self.write_reg(adr, data)
+        yield from self.set_reg(adr, data)
         r = (yield self.p.dut.comm.proto.config.raw_bits())
         assert r == data, (r, data)
-        r = (yield from self.read_reg(adr))
+        r = (yield from self.get_reg(adr))
         assert r == data, (r, data)
 
         adr = 1
         data = 0xa5
-        yield from self.write_reg(adr, data)
+        yield from self.set_reg(adr, data)
         r = (yield self.p.dut.comm.proto.checksum)
         assert r == data, (r, data)
         self.checksum = data
-        r = (yield from self.read_reg(adr))
+        r = (yield from self.get_reg(adr))
         assert r == self.checksum_read, (r, self.checksum_read)
 
         adr = 2
         data = 0x1a
-        yield from self.write_reg(adr, data)
+        yield from self.set_reg(adr, data)
         r = (yield self.p.dut.comm.proto.frame)
         assert r == data, (r, data)
-        r = (yield from self.read_reg(adr))
+        r = (yield from self.get_reg(adr))
         assert r == data, (r, data)
 
         adr = 1
-        r = (yield from self.read_reg(adr))
+        r = (yield from self.get_reg(adr))
         assert r == self.checksum_read, (r, self.checksum_read)
 
         mem = 1

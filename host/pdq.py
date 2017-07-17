@@ -348,8 +348,8 @@ class PdqBase:
     def write(self, data):
         raise NotImplementedError
 
-    def write_reg(self, board, adr, data):
-        """Write to a configuration register.
+    def set_reg(self, board, adr, data):
+        """Set a register.
 
         Args:
             board (int): Board to write to (0-0xe), 0xf for all boards.
@@ -378,7 +378,7 @@ class PdqBase:
                 (aux_dac & Cat(_.aux for _ in channels) != 0)`
             board (int): Board to write to (0-0xe), 0xf for all boards.
         """
-        self.write_reg(board, 0, (reset << 0) | (clk2x << 1) | (enable << 2) |
+        self.set_reg(board, 0, (reset << 0) | (clk2x << 1) | (enable << 2) |
                        (trigger << 3) | (aux_miso << 4) | (aux_dac << 5))
 
     def set_checksum(self, crc=0, board=0xf):
@@ -388,7 +388,7 @@ class PdqBase:
             crc (int): Checksum value to write.
             board (int): Board to write to (0-0xe), 0xf for all boards.
         """
-        self.write_reg(board, 1, crc)
+        self.set_reg(board, 1, crc)
 
     def set_frame(self, frame, board=0xf):
         """Set the current frame.
@@ -397,7 +397,7 @@ class PdqBase:
             frame (int): Frame to select.
             board (int): Board to write to (0-0xe), 0xf for all boards.
         """
-        self.write_reg(board, 2, frame)
+        self.set_reg(board, 2, frame)
 
     def write_mem(self, channel, data, start_addr=0):
         """Write to channel memory.
