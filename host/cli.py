@@ -18,7 +18,12 @@
 
 import logging
 import numpy as np
-from scipy import interpolate
+try:
+    from scipy import interpolate
+except ImportError:
+    import warnings
+    warnings.warn("no scipy found, will not inteprolate")
+    interpolate = None
 
 from .pdq import Pdq
 
@@ -103,7 +108,7 @@ def main(dev=None, args=None):
                    aux_dac=args.aux_dac, board=0xf)
 
     dt = np.diff(times.astype(np.int))
-    if args.order:
+    if args.order and interpolate:
         tck = interpolate.splrep(times, voltages, k=args.order, s=0)
         u = interpolate.spalde(times, tck)
     else:
