@@ -82,11 +82,22 @@ the following additional packages are required:
 Testbenches
 ===========
 
+There are multiple testbenches for the individual gateware and software
+components. Some gateware tests are included in the respective sources in
+``gateware/``, others are in ``testbench/`` or have been moved into more
+suitable places like the ``migen``, ``misoc``, or ``artiq`` packages.
+
 ::
 
   $ python3 -m testbench.escape
   $ python3 -m testbench.cli
 
+
+Examples
+========
+
+Some initial example usage of the PDQ code is located in this repository in
+``examples/``.
 
 References
 ==========

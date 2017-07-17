@@ -161,6 +161,10 @@ bit of the data is clocked into the device. Register access messages have
 fixed length (two bytes for a write and three bytes for a read).
 Message data after a register access is ignored.
 
+An implementation of the PDQ SPI protocol is the `ARTIQ PDQ driver
+<https://github.com/m-labs/artiq/blob/master/artiq/coredevice/pdq.py>`_ with
+its `documentation <https://m-labs.hk/artiq/manual-master/core_drivers_reference.html#module-artiq.coredevice.pdq>`_.
+
 .. _usb-protocol:
 
 USB Protocol
