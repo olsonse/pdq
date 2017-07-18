@@ -39,9 +39,9 @@ M-Labs also provides conda packages for Migen and MiSoC under the ``main`` and `
 
 Then to build the gateware::
 
-  $ python make.py -c 3
+  $ python -m pdq.gateware.make -c 3
 
-where ``-c 3`` determines the number of channels (see also ``python make.py -h``
+where ``-c 3`` determines the number of channels (see also ``python pdq.gateware.make -h``
 for help).
 
 The HTML documentation can be built with::
@@ -84,13 +84,13 @@ Testbenches
 
 There are multiple testbenches for the individual gateware and software
 components. Some gateware tests are included in the respective sources in
-``gateware/``, others are in ``testbench/`` or have been moved into more
+``pdq/gateware/``, others are in ``pdq/test/`` or have been moved into more
 suitable places like the ``migen``, ``misoc``, or ``artiq`` packages.
 ``nose`` can be used to conveniently run the included tests:
 
 ::
 
-  $ nosetests -v testbench
+  $ nosetests -v
 
 
 Examples
