@@ -12,6 +12,9 @@ env:
   - CHANNELS=2
   - CHANNELS=1
 before_install:
+- pip install --src ./src -e git+https://github.com/m-labs/migen.git#egg=migen
+- pip install --src ./src -e git+https://github.com/m-labs/asyncserial.git#egg=asyncserial
+- pip install --src ./src -e git+https://github.com/m-labs/misoc.git#egg=misoc
 - pip install -e .
 - pip install colorama
 - pip install nose

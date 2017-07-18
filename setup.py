@@ -31,16 +31,8 @@ Topic :: System :: Hardware
     install_requires=[
         "migen", "misoc", "scipy", "numpy", "artiq>=3.0.dev",
     ],
-    extras_require={},
-    dependency_links=[
-        "git+https://github.com/m-labs/migen.git@develop#egg=migen",
-        "git+https://github.com/m-labs/misoc.git@develop#egg=misoc",
-        "git+https://github.com/m-labs/asyncserial.git@develop#egg=asyncserial",
-    ],
     packages=find_packages(),
-    namespace_packages=[],
     include_package_data=True,
-    ext_modules=[],
     entry_points={
         "console_scripts": [
             "pdq = pdq.host.cli:main",
