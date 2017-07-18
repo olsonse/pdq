@@ -12,6 +12,7 @@ env:
   - CHANNELS=2
   - CHANNELS=1
 before_install:
+- pip install -e .
 - pip install colorama
 - pip install nose
 - "./.travis/get-xilinx.sh"
