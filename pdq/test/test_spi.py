@@ -20,7 +20,8 @@ import logging
 from migen import *
 from misoc.cores.spi import SPIMachine
 
-from gateware.spi import SPISlave
+from pdq.gateware.spi import SPISlave
+
 
 logger = logging.getLogger(__name__)
 

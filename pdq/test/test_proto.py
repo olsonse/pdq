@@ -18,7 +18,8 @@
 from migen import *
 from migen.sim import run_simulation
 from migen.fhdl import verilog
-from gateware.comm import Protocol
+
+from pdq.gateware.comm import Protocol
 
 
 class TB(Module):

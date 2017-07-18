@@ -2,7 +2,7 @@ import logging
 from migen import *
 
 from misoc.cores.liteeth_mini.mac.crc import LiteEthMACCRCEngine
-from host.pdq import crc8
+from pdq.host.pdq import crc8
 
 logger = logging.getLogger(__name__)
 
@@ -23,10 +23,14 @@ class TB(Module):
             out.append((yield self.crc.next))
 
 
-if __name__ == "__main__":
+def test():
     from migen.fhdl import verilog
     tb = TB(0x07)
     out = []
     m = b"123456789"
     run_simulation(tb, tb.run_data(m, out), vcd_name="crc.vcd")
     assert out[-1] == crc8(m)
+
+
+if __name__ == "__main__":
+    test()

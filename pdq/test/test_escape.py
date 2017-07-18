@@ -18,7 +18,7 @@
 from migen import *
 from migen.sim import run_simulation
 
-from gateware.escape import Unescaper
+from pdq.gateware.escape import Unescaper
 
 
 data_layout = [("data", 8)]

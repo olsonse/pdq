@@ -18,11 +18,11 @@
 
 import argparse
 
-from gateware.platform import Platform
-from gateware.pdq import Pdq
+from .platform import Platform
+from .pdq import Pdq
 
 
-def _main():
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-x", "--xilinx", default=None)
     parser.add_argument("-c", "--config", help="Configurations to build. "
@@ -44,4 +44,4 @@ def _main():
 
 
 if __name__ == "__main__":
-    _main()
+    main()

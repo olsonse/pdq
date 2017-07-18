@@ -22,8 +22,8 @@ from itertools import count
 from migen import run_simulation, passive, Module
 from misoc.cores.spi import SPIMachine
 
-from gateware.pdq import PdqSim
-from host.pdq import crc8
+from pdq.gateware.pdq import PdqSim
+from pdq.host.pdq import crc8
 
 
 logger = logging.getLogger(__name__)

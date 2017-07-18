@@ -1,60 +1,60 @@
 Code Documentation
 ==================
 
-:mod:`host.cli` module
-----------------------
+:mod:`pdq.host.cli` module
+--------------------------
 
 .. argparse::
-    :ref: host.cli.get_argparser
+    :ref: pdq.host.cli.get_argparser
     :prog: pdq
 
-.. automodule:: host.cli
+.. automodule:: pdq.host.cli
     :members:
 
-:mod:`host.pdq` module
-----------------------
-
-.. automodule:: host.pdq
-    :members:
-
-:mod:`gateware.pdq` module
+:mod:`pdq.host.pdq` module
 --------------------------
 
-.. automodule:: gateware.pdq
+.. automodule:: pdq.host.pdq
     :members:
 
-:mod:`gateware.comm` module
----------------------------
+:mod:`pdq.gateware.pdq` module
+------------------------------
 
-.. automodule:: gateware.comm
+.. automodule:: pdq.gateware.pdq
     :members:
 
-:mod:`gateware.dac` module
---------------------------
-
-.. automodule:: gateware.dac
-    :members:
-
-:mod:`gateware.platform` module
+:mod:`pdq.gateware.comm` module
 -------------------------------
 
-.. automodule:: gateware.platform
+.. automodule:: pdq.gateware.comm
     :members:
 
-:mod:`gateware.escape` module
------------------------------
+:mod:`pdq.gateware.dac` module
+------------------------------
 
-.. automodule:: gateware.escape
+.. automodule:: pdq.gateware.dac
     :members:
 
-:mod:`gateware.ft245r` module
------------------------------
+:mod:`pdq.gateware.platform` module
+-----------------------------------
 
-.. automodule:: gateware.ft245r
+.. automodule:: pdq.gateware.platform
     :members:
 
-:mod:`gateware.spi` module
---------------------------
+:mod:`pdq.gateware.escape` module
+---------------------------------
 
-.. automodule:: gateware.spi
+.. automodule:: pdq.gateware.escape
+    :members:
+
+:mod:`pdq.gateware.ft245r` module
+---------------------------------
+
+.. automodule:: pdq.gateware.ft245r
+    :members:
+
+:mod:`pdq.gateware.spi` module
+------------------------------
+
+.. automodule:: pdq.gateware.spi
     :members:

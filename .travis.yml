@@ -12,15 +12,12 @@ env:
   - CHANNELS=2
   - CHANNELS=1
 before_install:
-- pip install --src ./src -e git+https://github.com/m-labs/migen.git#egg=migen
-- pip install --src ./src -e git+https://github.com/m-labs/asyncserial.git#egg=asyncserial
-- pip install --src ./src -e git+https://github.com/m-labs/misoc.git#egg=misoc
 - pip install colorama
 - pip install nose
 - "./.travis/get-xilinx.sh"
 script:
 - nosetests -v
-- python3 ./make.py -x $(pwd)/opt/Xilinx -c $CHANNELS
+- python3 -m pdq.gateware.make -x $(pwd)/opt/Xilinx -c $CHANNELS
 notifications:
   email: false
   slack:

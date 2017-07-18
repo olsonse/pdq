@@ -1,5 +1,4 @@
-#!/usr/bin/python3
-# Copyright 2013-2017 Robert Jordens <jordens@gmail.com>
+# Copyright 2016-2017 Robert Jordens <jordens@gmail.com>
 #
 # This file is part of pdq.
 #
@@ -16,35 +15,40 @@
 # You should have received a copy of the GNU General Public License
 # along with pdq.  If not, see <http://www.gnu.org/licenses/>.
 
+
+import logging
 from io import BytesIO
 
 from migen import run_simulation
 
-from gateware.pdq import PdqSim
-from host import cli
+
+from pdq.host import cli
+from .test_spi_pdq import TB
+
+
+logger = logging.getLogger(__name__)
 
 
 def test():
+    logging.basicConfig(
+        level=logging.INFO,
+        format="[%(name)s.%(funcName)s:%(lineno)d] %(message)s")
+
     buf = BytesIO()
     cli.main(buf, args=[])
+    tb = TB()
 
-    def run(n):
-        for i in range(n):
-            yield
-            print("\r{}".format(i), end="")
-
-    tb = PdqSim()
-    run_simulation(tb, [tb.write(buf.getvalue()), tb.record(), run(500)],
-                   vcd_name="pdq.vcd")
-    try:
-        from matplotlib import pyplot as plt
-        import numpy as np
-    except ImportError:
-        pass
-    else:
-        out = np.array(tb.outputs, np.uint16).view(np.int16)
-        plt.step(np.arange(len(out)) - 22, out, "-r")
-        plt.show()
+    xfers = []
+    cmds = []
+    run_simulation(tb, [
+        tb.watch_oe(),
+        tb.log_xfers(xfers),
+        tb.log_cmds(cmds),
+        tb.write(buf.getvalue()),
+    ], vcd_name="spi_pdq.vcd")
+    # out = np.array(tb.outputs, np.uint16).view(np.int16)
+    # plt.plot(out)
+    # print(xfers)
 
 
 if __name__ == "__main__":

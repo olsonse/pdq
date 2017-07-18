@@ -20,8 +20,8 @@ import struct
 
 from migen import *
 
-from gateware.dac import Dac
-from host import pdq
+from pdq.gateware.dac import Dac
+from pdq.host import pdq
 
 
 class TB(Module):
