@@ -29,8 +29,11 @@ Topic :: Scientific/Engineering :: Physics
 Topic :: System :: Hardware
 """.splitlines(),
     install_requires=[
-        "migen", "misoc", "scipy", "numpy", "artiq>=3.0.dev",
+        "migen", "misoc", "numpy", "scipy",
     ],
+    extras_require={
+        "artiq": ["artiq>=3.0.dev"],
+    },
     packages=find_packages(),
     include_package_data=True,
     entry_points={
