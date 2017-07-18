@@ -3,7 +3,6 @@
 from setuptools import setup, find_packages
 import sys
 
-import versioneer
 
 if not (3, 5, 3) <= sys.version_info[:3] < (3, 6, 0):
     raise Exception("You need Python 3.5.3+ (but not 3.6+)")
@@ -11,8 +10,7 @@ if not (3, 5, 3) <= sys.version_info[:3] < (3, 6, 0):
 
 setup(
     name="pdq",
-    version=versioneer.get_version(),
-    cmdclass=versioneer.get_cmdclass(),
+    version="3.0.dev",
     author="NIST/M-Labs",
     author_email="artiq@lists.m-labs.hk",
     url="https://github.com/m-labs/pdq",
@@ -31,7 +29,7 @@ Topic :: Scientific/Engineering :: Physics
 Topic :: System :: Hardware
 """.splitlines(),
     install_requires=[
-        "migen", "misoc", "scipy", "numpy", "artiq>=3.0",
+        "migen", "misoc", "scipy", "numpy", "artiq>=3.0.dev",
     ],
     extras_require={},
     dependency_links=[
