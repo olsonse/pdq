@@ -6,7 +6,8 @@ import time
 
 from pdq.host.usb import PDQ
 from artiq.protocols.pc_rpc import simple_server_loop
-from artiq.tools import *
+from artiq.tools import (verbosity_args, simple_network_args, init_logger,
+    bind_address_from_args)
 
 
 def get_argparser():

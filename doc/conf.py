@@ -27,7 +27,19 @@ class Mock(MagicMock):
         return Mock()
 
 
-mock_modules = ["numpy", "scipy", "scipy.interpolate", "serial"]
+mock_modules = [
+    "numpy",
+    "scipy",
+    "scipy.interpolate",
+    "serial",
+    "artiq",
+    "artiq.protocols",
+    "artiq.tools",
+    "artiq.language",
+    "artiq.language.core",
+    "artiq.coredevice",
+    "artiq.protocols.pc_rpc",
+]
 
 for module in mock_modules:
     sys.modules[module] = Mock()

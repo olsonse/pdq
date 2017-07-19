@@ -1,4 +1,4 @@
-from artiq.language import *
+from artiq.language import us, ns, delay_mu, at_mu, kernel, portable, s
 
 
 frame_setup = 1.5*us
