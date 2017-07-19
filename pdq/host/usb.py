@@ -10,21 +10,21 @@ logger = logging.getLogger(__name__)
 
 
 class PDQ(PDQBase):
+    """Initialize PDQ USB/Parallel device stack.
+
+    .. note:: This device should only be used if the PDQ is intended to be
+        configured using the USB connection and **not** via SPI.
+
+    Args:
+        url (str): Pyserial device URL. Can be ``hwgrep://`` style
+            (search for serial number, bus topology, USB VID:PID
+            combination), ``COM15`` for a Windows COM port number,
+            ``/dev/ttyUSB0`` for a Linux serial port.
+        dev (file-like): File handle to use as device. If passed, ``url``
+            is ignored.
+        **kwargs: See :class:`PDQBase` .
+    """
     def __init__(self, url=None, dev=None, **kwargs):
-        """Initialize PDQ USB/Parallel device stack.
-
-        .. note:: This device should only be used if the PDQ is intended to be
-           configured using the USB connection and **not** via SPI.
-
-        Args:
-            url (str): Pyserial device URL. Can be ``hwgrep://`` style
-                (search for serial number, bus topology, USB VID:PID
-                combination), ``COM15`` for a Windows COM port number,
-                ``/dev/ttyUSB0`` for a Linux serial port.
-            dev (file-like): File handle to use as device. If passed, ``url``
-                is ignored.
-            **kwargs: See :class:`PDQBase` .
-        """
         if dev is None:
             dev = serial.serial_for_url(url)
         self.dev = dev
