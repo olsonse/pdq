@@ -6,12 +6,16 @@ import io
 
 from migen import run_simulation
 
-from artiq.wavesynth.compute_samples import Synthesizer
+try:
+    from artiq.wavesynth.compute_samples import Synthesizer
+except ImportError:
+    Synthesizer = None
 
 from ..gateware.pdq import PdqSim
 from ..host.usb import PDQ
 
 
+@unittest.skipUnless(Synthesizer, "no artiq found")
 class TestPdq(unittest.TestCase):
     def setUp(self):
         self.dev = PDQ(dev=io.BytesIO())
