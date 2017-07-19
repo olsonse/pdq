@@ -51,7 +51,7 @@ device_db = {
     },
     "pdq_spi": {
         "type": "local",
-        "module": "artiq.coredevice.pdq",
+        "module": "pdq.artiq.spi",
         "class": "PDQ",
         "arguments": {"spi_device": "spi_sma", "chip_select": 1}
     },
