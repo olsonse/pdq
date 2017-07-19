@@ -59,12 +59,12 @@ device_db = {
     "pdq_usb1": {
         "type": "controller",
         "host": "::1",
-        "port": 4000,
+        "port": 3252,
         "command": "aqctl_pdq -p {port} --bind {bind} --simulation --dump qc_q1_0.bin"
     },
     "pdq_usb": {
         "type": "local",
-        "module": "artiq.devices.pdq",
+        "module": "pdq.artiq.mediator",
         "class": "CompoundPDQ",
         "arguments": {
             "pdq_devices": ["pdq_usb1"],
