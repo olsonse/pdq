@@ -25,7 +25,7 @@ except ImportError:
     warnings.warn("no scipy found, will not inteprolate")
     interpolate = None
 
-from .pdq import Pdq
+from .usb import PDQ
 
 import argparse
 import time
@@ -86,7 +86,7 @@ def main(dev=None, args=None):
 
     if args.dump:
         dev = open(args.dump, "wb")
-    dev = Pdq(args.serial, dev)
+    dev = PDQ(args.serial, dev)
 
     if args.reset:
         dev.write(b"")  # flush eop
