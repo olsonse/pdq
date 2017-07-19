@@ -37,11 +37,15 @@ M-Labs also provides conda packages for Migen and MiSoC under the ``main`` and `
 
   $ conda install -c m-labs/label/dev migen misoc
 
+Install PDQ using pip::
+
+  $ pip install -e .
+
 Then to build the gateware::
 
-  $ python -m pdq.gateware.make -c 3
+  $ pdq_make -c 3
 
-where ``-c 3`` determines the number of channels (see also ``python pdq.gateware.make -h``
+where ``-c 3`` determines the number of channels (see also ``pdq_make -h``
 for help).
 
 The HTML documentation can be built with::
@@ -64,9 +68,9 @@ Programming
 
 Once the device has been programmed with the gateware and powered up, it can be used to generate waveforms.
 
-See the :class:`host.pdq.Pdq` class for how to access a stack of PDQ board programmatically, how to submit commands, and how prepare, serialize, and program segments, frames, and channels.
+See the :class:`pdq.host.usb.PDQ` class for how to access a stack of PDQ board programmatically, how to submit commands, and how prepare, serialize, and program segments, frames, and channels.
 
-An example how :class:`host.pdq.Pdq` can be used is the command line test interface to the PDQ in :func:`host.cli.main`.
+An example how :class:`pdq.host.usb.PDQ` can be used is the command line test interface to the PDQ in :func:`pdq.host.cli.main`.
 
 Individual commands are described in the manual in :ref:`usb-protocol`.
 
