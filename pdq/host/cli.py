@@ -93,7 +93,7 @@ def main(dev=None, args=None):
         dev.set_config(reset=True)
         time.sleep(.1)
 
-    dev.set_checksum(0)
+    dev.set_crc(0)
     dev.checksum = 0
 
     freq = 50e6

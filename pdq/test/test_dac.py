@@ -21,7 +21,7 @@ import struct
 from migen import *
 
 from pdq.gateware.dac import Dac
-from pdq.host import pdq
+from pdq.host.usb import PDQ
 
 
 class TB(Module):
@@ -101,7 +101,7 @@ def test():
     # from migen.fhdl import verilog
     # print(verilog.convert(Dac()))
 
-    p = pdq.Pdq(dev=BytesIO())
+    p = PDQ(dev=BytesIO())
     p.program(_test_program)
     mem = p.channels[0].serialize()
     mem = struct.unpack("<" + "H"*(len(mem)//2), mem)

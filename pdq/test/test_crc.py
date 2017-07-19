@@ -2,7 +2,7 @@ import logging
 from migen import *
 
 from misoc.cores.liteeth_mini.mac.crc import LiteEthMACCRCEngine
-from pdq.host.pdq import crc8
+from pdq.host.protocol import crc8
 
 logger = logging.getLogger(__name__)
 
