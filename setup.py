@@ -40,7 +40,7 @@ Topic :: System :: Hardware
         "console_scripts": [
             "pdq = pdq.host.cli:main",
             "pdq_make = pdq.gateware.make:main",
-            "aqctl_pdq = pdq.aqctl_pdq:main",
+            "aqctl_pdq = pdq.artiq.aqctl_pdq:main",
             ],
     }
 )
