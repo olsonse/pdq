@@ -1,3 +1,4 @@
 -e git://github.com/m-labs/migen.git#egg=migen
--e git://github.com/m-labs/misoc.git#egg=migen
+-e git://github.com/m-labs/asyncserial.git#egg=asyncserial
+-e git://github.com/m-labs/misoc.git#egg=misoc
 sphinx-argparse
