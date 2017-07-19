@@ -34,3 +34,11 @@ class PDQ2SPI(EnvExperiment):
             self.pdq.set_crc(0)
             self.pdq.set_frame(0)
             self.led.off()
+
+    @kernel
+    def trigger(self):
+        """Example showing how to trigger a PDQ stack over SPI: set and clear
+        the trigger flag in the configuration register"""
+        self.pdq.set_config(clk2x=1, trigger=1, enable=0, aux_miso=1)
+        delay(2*us)
+        self.pdq.set_config(clk2x=1, trigger=0, enable=0, aux_miso=1)
