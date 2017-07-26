@@ -1,4 +1,4 @@
-from artiq.language.core import kernel, portable, delay_mu
+from artiq.language.core import kernel, delay_mu
 from artiq.coredevice import spi
 
 from ..host.protocol import PDQBase, PDQ_CMD
@@ -9,7 +9,6 @@ _PDQ_SPI_CONFIG = (
         0*spi.SPI_CLK_POLARITY | 0*spi.SPI_CLK_PHASE |
         0*spi.SPI_LSB_FIRST | 0*spi.SPI_HALF_DUPLEX
         )
-
 
 
 class PDQ(PDQBase):
@@ -30,7 +29,6 @@ class PDQ(PDQBase):
     :param chip_select: Value to drive on the chip select lines of the SPI bus
         during transactions.
     """
-
     kernel_invariants = {"core", "chip_select", "bus"}
 
     def __init__(self, dmgr, spi_device, chip_select=1, **kwargs):

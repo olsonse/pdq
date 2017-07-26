@@ -44,6 +44,8 @@ mock_modules = [
 for module in mock_modules:
     sys.modules[module] = Mock()
 
+sys.modules["artiq.language.core"].kernel = lambda f: f
+sys.modules["artiq.language.core"].portable = lambda f: f
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
