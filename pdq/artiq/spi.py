@@ -1,11 +1,12 @@
 from artiq.language.core import kernel, delay_mu
-from artiq.coredevice import spi
+from artiq.coredevice import spi2 as spi
 
 from ..host.protocol import PDQBase, PDQ_CMD
 
 
 _PDQ_SPI_CONFIG = (
-        0*spi.SPI_OFFLINE | 0*spi.SPI_CS_POLARITY |
+        0*spi.SPI_OFFLINE | 0*spi.SPI_END |
+        0*spi.SPI_INPUT | 0*spi.SPI_CS_POLARITY |
         0*spi.SPI_CLK_POLARITY | 0*spi.SPI_CLK_PHASE |
         0*spi.SPI_LSB_FIRST | 0*spi.SPI_HALF_DUPLEX
         )
@@ -28,32 +29,32 @@ class PDQ(PDQBase):
     :param spi_device: Name of the SPI bus this device is on.
     :param chip_select: Value to drive on the chip select lines of the SPI bus
         during transactions.
+    :param write_div: Write clock divider.
+    :param read_div: Read clock divider.
     """
-    kernel_invariants = {"core", "chip_select", "bus"}
+    kernel_invariants = {"core", "chip_select", "bus",
+                         "write_div", "read_div"}
 
-    def __init__(self, dmgr, spi_device, chip_select=1, **kwargs):
+    def __init__(self, dmgr, spi_device, chip_select=1, write_div=24,
+            read_div=64, **kwargs):
         self.core = dmgr.get("core")
         self.bus = dmgr.get(spi_device)
         self.chip_select = chip_select
-        PDQBase.__init__(self, **kwargs)
-
-    @kernel
-    def setup_bus(self, write_div=24, read_div=64):
-        """Configure the SPI bus and the SPI transaction parameters
-        for this device. This method has to be called before any other method
-        if the bus has been used to access a different device in the meantime.
-
-        This method advances the timeline by the duration of two
-        RTIO-to-Wishbone bus transactions.
-
-        :param write_div: Write clock divider.
-        :param read_div: Read clock divider.
-        """
         # write: 4*8ns >= 20ns = 2*clk (clock de-glitching 50MHz)
         # read: 15*8*ns >= ~100ns = 5*clk (clk de-glitching latency + miso
         #   latency)
-        self.bus.set_config_mu(_PDQ_SPI_CONFIG, write_div, read_div)
-        self.bus.set_xfer(self.chip_select, 16, 0)
+        self.write_div = write_div
+        self.read_div = read_div
+        PDQBase.__init__(self, **kwargs)
+
+    @kernel
+    def setup_bus(self):
+        """Configure the SPI bus and the SPI transaction parameters
+        for this device. This method has to be called before any other method
+        if the bus has been used to access a different device in the meantime.
+        """
+        self.bus.set_config_mu(_PDQ_SPI_CONFIG | spi.SPI_END, 16,
+                               self.write_div, self.chip_select)
 
     @kernel
     def set_reg(self, adr, data, board):
@@ -65,7 +66,6 @@ class PDQ(PDQBase):
         :param board: Board to access, ``0xf`` to write to all boards.
         """
         self.bus.write((PDQ_CMD(board, 0, adr, 1) << 24) | (data << 16))
-        delay_mu(self.bus.ref_period_mu)  # get to 20ns min cs high
 
     @kernel
     def get_reg(self, adr, board):
@@ -77,12 +77,11 @@ class PDQ(PDQBase):
 
         :return: Register data (8 bit).
         """
-        self.bus.set_xfer(self.chip_select, 16, 8)
+        self.bus.set_config_mu(_PDQ_SPI_CONFIG | spi.SPI_END | spi.SPI_INPUT,
+                               24, self.read_div, self.chip_select)
         self.bus.write(PDQ_CMD(board, 0, adr, 0) << 24)
-        delay_mu(self.bus.ref_period_mu)  # get to 20ns min cs high
-        self.bus.read_async()
-        self.bus.set_xfer(self.chip_select, 16, 0)
-        return int(self.bus.input_async() & 0xff)  # FIXME: m-labs/artiq#713
+        self.setup_bus()
+        return self.bus.read() & 0xff
 
     @kernel
     def write_mem(self, mem, adr, data, board=0xf):  # FIXME: m-labs/artiq#714
@@ -90,23 +89,31 @@ class PDQ(PDQBase):
 
         :param mem: DAC channel memory to access (0 to 2).
         :param adr: Start address.
-        :param data: Memory data. List of 16 bit integers.
+        :param data: Memory data. List of 16 bit integers. The data will be
+            transferred little endian (low byte first).
         :param board: Board to access (0-15) with ``0xf = 15`` being broadcast
             to all boards.
         """
-        self.bus.set_xfer(self.chip_select, 24, 0)
+        n = len(data)
+        if not n:
+            return
+        self.bus.set_config_mu(_PDQ_SPI_CONFIG,
+                               24, self.write_div, self.chip_select)
         self.bus.write((PDQ_CMD(board, 1, mem, 1) << 24) |
                        ((adr & 0x00ff) << 16) | (adr & 0xff00))
-        delay_mu(-self.bus.write_period_mu-3*self.bus.ref_period_mu)
-        self.bus.set_xfer(self.chip_select, 16, 0)
-        for i in data:
-            self.bus.write(i << 16)
-            delay_mu(-self.bus.write_period_mu)
-        delay_mu(self.bus.write_period_mu + self.bus.ref_period_mu)
-        # get to 20ns min cs high
+        self.bus.set_config_mu(_PDQ_SPI_CONFIG,
+                               16, self.write_div, self.chip_select)
+        for i in range(n):
+            if i == n - 1:
+                self.bus.set_config_mu(_PDQ_SPI_CONFIG | spi.SPI_END,
+                                       16, self.write_div, self.chip_select)
+            v = data[i]
+            v = ((v & 0xff00) >> 8) | ((v & 0x00ff) << 8)
+            self.bus.write(v << 16)
+        self.setup_bus()
 
     @kernel
-    def read_mem(self, mem, adr, data, board=0xf, buffer=8):
+    def read_mem(self, mem, adr, data, board=0xf, buffer=4):
         """Read from DAC channel waveform data memory.
 
         :param mem: DAC channel memory to access (0 to 2).
@@ -118,21 +125,24 @@ class PDQ(PDQBase):
         n = len(data)
         if not n:
             return
-        self.bus.set_xfer(self.chip_select, 24, 8)
+        self.bus.set_config_mu(_PDQ_SPI_CONFIG,
+                               32, self.read_div, self.chip_select)
         self.bus.write((PDQ_CMD(board, 1, mem, 0) << 24) |
                        ((adr & 0x00ff) << 16) | (adr & 0xff00))
-        delay_mu(-self.bus.write_period_mu-3*self.bus.ref_period_mu)
-        self.bus.set_xfer(self.chip_select, 0, 16)
+        self.bus.set_config_mu(_PDQ_SPI_CONFIG | spi.SPI_INPUT,
+                               16, self.read_div, self.chip_select)
         for i in range(n):
+            if i == n - 1:
+                self.bus.set_config_mu(_PDQ_SPI_CONFIG | spi.SPI_INPUT |
+                                       spi.SPI_END, 16, self.read_div,
+                                       self.chip_select)
             self.bus.write(0)
-            delay_mu(-self.bus.read_period_mu)
-            if i > 0:
-                delay_mu(-3*self.bus.ref_period_mu)
-                self.bus.read_async()
             if i > buffer:
-                data[i - 1 - buffer] = self.bus.input_async() & 0xffff
-        delay_mu(self.bus.read_period_mu)
-        self.bus.set_xfer(self.chip_select, 16, 0)
-        self.bus.read_async()
-        for i in range(max(0, n - buffer - 1), n):
-            data[i] = self.bus.input_async() & 0xffff
+                v = self.bus.read()
+                v = ((v & 0xff00) >> 8) | ((v & 0x00ff) << 8)
+                data[i - buffer] = v
+        for i in range(max(0, n - buffer), n):
+            v = self.bus.read()
+            v = ((v & 0xff00) >> 8) | ((v & 0x00ff) << 8)
+            data[i] = v
+        self.setup_bus()

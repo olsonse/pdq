@@ -66,7 +66,7 @@ class PDQ2SPI(EnvExperiment):
     def test(self):
         self.core.reset()
         self.core.break_realtime()
-        self.pdq.setup_bus(write_div=50, read_div=50)
+        self.pdq.setup_bus()
         self.pdq.set_config(reset=1)
 
         for i in range(100):
@@ -82,6 +82,19 @@ class PDQ2SPI(EnvExperiment):
             self.test_mem()
         for i in range(100):
             self.test_prog()
+
+        delay(10*us)
+        config = self.pdq.get_config()
+        delay(10*ms)
+        crc = self.pdq.get_crc()
+        delay(10*ms)
+
+        data = [1, 2, 3, 4, 5]
+        self.pdq.write_mem(mem=2, adr=3, data=data, board=0xf)
+
+        delay(10*us)
+        self.pdq.read_mem(mem=2, adr=3, data=data, board=0xf)
+        print(config, crc, data)
 
     @kernel
     def trigger(self):

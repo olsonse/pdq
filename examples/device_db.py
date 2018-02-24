@@ -37,15 +37,9 @@ device_db = {
         "class": "TTLOut",
         "arguments": {"channel": 1}
     },
-    "ams101_spi": {
-        "type": "local",
-        "module": "artiq.coredevice.spi",
-        "class": "SPIMaster",
-        "arguments": {"channel": 2}
-    },
     "spi_sma": {
         "type": "local",
-        "module": "artiq.coredevice.spi",
+        "module": "artiq.coredevice.spi2",
         "class": "SPIMaster",
         "arguments": {"channel": 3}
     },
@@ -57,6 +51,8 @@ device_db = {
             "spi_device": "spi_sma",
             "chip_select": 1,
             "num_boards": 1,
+            "write_div": 50,
+            "read_div": 50
         }
     },
     "pdq": "pdq_spi",

@@ -32,7 +32,7 @@ Topic :: System :: Hardware
         "migen", "misoc", "numpy", "scipy",
     ],
     extras_require={
-        "artiq": ["artiq>=3.0.dev"],
+        "artiq": ["artiq>=4.0.dev"],
     },
     packages=find_packages(),
     include_package_data=True,

@@ -41,6 +41,7 @@ class PDQ2Simple(EnvExperiment):
     @kernel
     def one(self):
         self.core.break_realtime()
+        self.pdq.setup_bus()
         delay(1*ms)
         self.pdq_spi.set_frame(self.load.frame_number)
         self.pdq_usb.trigger.pulse(1*us)
