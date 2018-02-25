@@ -149,7 +149,7 @@ class SPISlave(Module):
         self.spi = spi = Record(spi_layout)
         self.mosi = mosi = Endpoint([("data", width)])
         self.miso = miso = Endpoint([("data", width)])
-        self.cs_n = Signal()
+        self.cs_n = Signal(reset=1)
 
         ###
 
