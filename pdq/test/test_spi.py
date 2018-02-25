@@ -18,7 +18,7 @@
 
 import logging
 from migen import *
-from misoc.cores.spi import SPIMachine
+from misoc.cores.spi2 import SPIMachine
 
 from pdq.gateware.spi import SPISlave
 
@@ -28,52 +28,59 @@ logger = logging.getLogger(__name__)
 
 class TB(Module):
     def __init__(self):
-        self.submodules.m = m = SPIMachine(data_width=16, clock_width=8,
-                                           bits_width=6)
+        self.submodules.m = m = SPIMachine(data_width=16, div_width=8)
         self.submodules.s = s = SPISlave()
         self.comb += [
-            s.reset.eq(s.cs_n),
-            s.spi.cs_n.eq(~m.cs),
-            s.spi.clk.eq(m.cg.clk),
-            s.spi.mosi.eq(m.reg.o),
-            m.reg.i.eq(s.spi.miso),
-            s.spi.oe_m.eq(m.oe),
+                s.reset.eq(s.cs_n),
+                s.spi.mosi.eq(m.reg.sdo),
+        ]
+        self.sync += [
+                If(m.ce,
+                    s.spi.cs_n.eq(~m.cs_next),
+                    s.spi.clk.eq(m.clk_next),
+                ),
+                If(m.reg.sample,
+                    m.reg.sdi.eq(s.spi.miso),
+                )
         ]
 
     def run_setup(self):
         yield self.m.clk_phase.eq(0)
-        yield self.m.reg.lsb.eq(0)
-        yield self.m.div_write.eq(2)
-        yield self.m.div_read.eq(5)
+        yield self.m.reg.lsb_first.eq(0)
+        yield self.m.cg.div.eq(5)
+        yield self.m.length.eq(16 - 1)
+        yield self.m.end.eq(1)
         yield
         yield
 
     def run_master(self, write, read, warmup=15):
-        for i in write:
+        for o in write:
             for _ in range(warmup):
                 yield
-            o = (yield from self.xfer_master(i))
-            logger.info("master %s -> %s", i, o)
-            read.append(o)
+            i = (yield from self.xfer_master(o))
+            logger.info("master in=%#02x out=%#02x", i, o)
+            read.append(i)
 
     def xfer_master(self, i):
-        yield self.m.bits.n_write.eq(8)
-        yield self.m.bits.n_read.eq(8)
-        yield self.m.reg.data.eq(i << 8)
-        yield self.m.start.eq(1)
-        yield
-        yield self.m.start.eq(0)
-        while not (yield self.m.done):
+        while not (yield self.m.writable):
             yield
-        r = (yield self.m.reg.data) & 0xff
+        yield self.m.reg.pdo.eq(i << 8)
+        yield self.m.load.eq(1)
+        yield
+        yield self.m.load.eq(0)
+        while not (yield self.m.readable):
+            yield
+        r = (yield self.m.reg.pdi) & 0xff
         yield
         return r
 
-    def run_slave(self, write, read, warmup=15):
-        for i in write:
-            o = (yield from self.xfer_slave(i))
-            logger.info("slave %s -> %s", i, o)
-            read.append(o)
+    def run_slave(self, write, read, warmup=0):
+        for o in write:
+            for _ in range(warmup):
+                yield
+            i, eop = (yield from self.xfer_slave(o))
+            logger.info("slave in=%#02x out=%#02x eop=%i", i, o, eop)
+            read.append((i, eop))
 
     def xfer_slave(self, i):
         yield self.s.miso.data.eq(i)
