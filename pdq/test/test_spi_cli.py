@@ -41,7 +41,6 @@ def test():
     xfers = []
     cmds = []
     run_simulation(tb, [
-        tb.watch_oe(),
         tb.log_xfers(xfers),
         tb.log_cmds(cmds),
         tb.write(buf.getvalue()),
