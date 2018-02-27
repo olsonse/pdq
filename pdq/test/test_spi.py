@@ -68,6 +68,7 @@ class TB(Module):
         yield self.m.load.eq(1)
         yield
         yield self.m.load.eq(0)
+        yield
         while not (yield self.m.readable):
             yield
         r = (yield self.m.reg.pdi) & 0xff
