@@ -35,6 +35,34 @@ class PDQ2SPI(EnvExperiment):
             self.pdq.set_frame(0)
             self.led.off()
 
+        self.test_reg()
+
+    @kernel
+    def test_reg(self):
+        for i in range(100):
+            self.pdq.set_config(reset=1)
+            delay(100*us)
+            self.led.on()
+            self.pdq.set_config(clk2x=1, trigger=0, enable=0, aux_miso=1)
+            delay(100*us)
+            if self.pdq.get_config() != 242:
+                raise ValueError("wrong config")
+            delay(100*us)
+            if self.pdq.get_frame() != 0:
+                raise ValueError("wrong frame")
+            delay(100*us)
+            self.pdq.set_crc(0)
+            if self.pdq.get_crc() != 104:
+                raise ValueError("wrong crc")
+            delay(100*us)
+            self.pdq.set_frame(25)
+            if self.pdq.get_frame() != 25:
+                raise ValueError("wrong frame")
+            delay(100*us)
+            if self.pdq.get_crc() == 104:
+                raise ValueError("wrong frame")
+            delay(100*us)
+
     @kernel
     def trigger(self):
         """Example showing how to trigger a PDQ stack over SPI: set and clear
