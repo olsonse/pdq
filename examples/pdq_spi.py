@@ -36,6 +36,15 @@ class PDQ2SPI(EnvExperiment):
             self.led.off()
 
         self.test_reg()
+        self.test_mem()
+
+    @kernel
+    def trigger(self):
+        """Example showing how to trigger a PDQ stack over SPI: set and clear
+        the trigger flag in the configuration register"""
+        self.pdq.set_config(clk2x=1, trigger=1, enable=0, aux_miso=1)
+        delay(2*us)
+        self.pdq.set_config(clk2x=1, trigger=0, enable=0, aux_miso=1)
 
     @kernel
     def test_reg(self):
@@ -62,11 +71,24 @@ class PDQ2SPI(EnvExperiment):
             if self.pdq.get_crc() == 104:
                 raise ValueError("wrong frame")
             delay(100*us)
+            self.led.off()
 
     @kernel
-    def trigger(self):
-        """Example showing how to trigger a PDQ stack over SPI: set and clear
-        the trigger flag in the configuration register"""
-        self.pdq.set_config(clk2x=1, trigger=1, enable=0, aux_miso=1)
-        delay(2*us)
-        self.pdq.set_config(clk2x=1, trigger=0, enable=0, aux_miso=1)
+    def test_mem(self):
+        self.pdq.setup_bus(write_div=24, read_div=64)
+        for i in range(100):
+            self.pdq.set_config(reset=1)
+            delay(100*us)
+            self.led.on()
+            self.pdq.set_config(clk2x=1, trigger=0, enable=0, aux_miso=1)
+            delay(100*us)
+            data_write = [1, 2, 3, 4, 5, 6, 7, 8]
+            self.pdq.write_mem(0, 0, data_write)
+            data_read = [0]*(len(data_write) + 1)
+            self.pdq.read_mem(0, 0, data_read)
+            for i in range(len(data_write)):
+                if data_read[i] != data_write[i]:
+                    print(data_read)
+                    raise ValueError("wrong memory")
+            delay(100*us)
+            self.led.off()
