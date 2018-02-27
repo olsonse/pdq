@@ -125,13 +125,13 @@ class PDQ(PDQBase):
         self.bus.set_xfer(self.chip_select, 0, 16)
         for i in range(n):
             self.bus.write(0)
-            delay_mu(-self.bus.write_period_mu)
+            delay_mu(-self.bus.read_period_mu)
             if i > 0:
                 delay_mu(-3*self.bus.ref_period_mu)
                 self.bus.read_async()
             if i > buffer:
                 data[i - 1 - buffer] = self.bus.input_async() & 0xffff
-        delay_mu(self.bus.write_period_mu)
+        delay_mu(self.bus.read_period_mu)
         self.bus.set_xfer(self.chip_select, 16, 0)
         self.bus.read_async()
         for i in range(max(0, n - buffer - 1), n):
