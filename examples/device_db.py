@@ -6,7 +6,7 @@ device_db = {
         "arguments": {
             "host": "abby",
             "ref_period": 1e-9,
-            "ref_multiplier": 8
+            "ref_multiplier": 1
         }
     },
     "core_log": {
