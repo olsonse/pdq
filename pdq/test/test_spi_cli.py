@@ -43,7 +43,7 @@ def test():
     run_simulation(tb, [
         tb.log_xfers(xfers),
         tb.log_cmds(cmds),
-        tb.write(buf.getvalue()),
+        # tb.write(buf.getvalue()),
     ], vcd_name="spi_pdq.vcd")
     # out = np.array(tb.outputs, np.uint16).view(np.int16)
     # plt.plot(out)
