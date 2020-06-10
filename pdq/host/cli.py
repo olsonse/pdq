@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 # Copyright 2013-2017 Robert Jordens <jordens@gmail.com>
 #
 # This file is part of pdq.
@@ -16,6 +16,18 @@
 # You should have received a copy of the GNU General Public License
 # along with pdq.  If not, see <http://www.gnu.org/licenses/>.
 
+
+import sys
+
+if __name__ == "__main__":
+    from os.path import join as path_join, dirname, pardir
+    sys.path.insert(0, path_join( dirname(__file__), pardir, pardir ) )
+    import pdq.host.cli
+    pdq.host.cli.main()
+    sys.exit()
+
+
+import pprint
 import logging
 import numpy as np
 try:
@@ -55,6 +67,9 @@ def get_argparser():
                         help="DAC channel OR mask to AUX/F5 TTL output "
                         "[%(default)#x]")
     parser.add_argument("-u", "--dump", help="dump to file [%(default)s]")
+    parser.add_argument("-p", "--print",
+                        help="print program to file.  '-' means stdout "
+                             "[%(default)s]")
     parser.add_argument("-r", "--reset", default=False,
                         action="store_true", help="do reset before")
     parser.add_argument("-m", "--multiplier", default=False,
@@ -125,13 +140,16 @@ def main(dev=None, args=None):
         })
     program = [[] for i in range(dev.channels[args.channel].num_frames)]
     program[args.frame] = segment
+    if args.print:
+        if args.print == '-':
+            f = sys.stdout
+        else:
+            f = open(args.print, 'w')
+        print('# Generated WaveSynth program\n\nprogram = \\', file=f)
+        pprint.pprint(program, f)
     dev.program(program, [args.channel])
 
     dev.set_frame(args.frame)
     dev.set_config(reset=False, clk2x=args.multiplier, enable=not args.disarm,
                    trigger=args.free, aux_miso=args.aux_miso,
                    aux_dac=args.aux_dac, board=0xf)
-
-
-if __name__ == "__main__":
-    main()
